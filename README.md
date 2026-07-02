@@ -101,3 +101,12 @@ python -m pytest -v
 - Roster, action, and invite data are local JSON only; accept URLs are
   placeholders until the web app ships a real accept flow.
 - There is no Next.js, Supabase, Notion, Gmail, PDF, ML recognition, or live conflict-analysis integration.
+
+## License
+
+GPL-3.0-only. See `LICENSE`.
+
+This license covers the local plugin in this repository only. Pluribus
+server-side services, roster and consent APIs, clearance workflows, and
+the Pluribus name and marks are not licensed by it. Substantial code
+contributions require a CLA — see `CONTRIBUTING.md`.

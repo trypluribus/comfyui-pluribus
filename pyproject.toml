@@ -3,6 +3,15 @@ name = "comfyui-pluribus"
 version = "0.2.2"
 description = "Pluribus AI Production Clearance Layer - ComfyUI adapter"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+
+[project.urls]
+Repository = "https://github.com/trypluribus/comfyui-pluribus"
+Homepage = "https://trypluribus.com"
+
+[tool.comfy]
+PublisherId = "pluribus"
+DisplayName = "Pluribus"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
