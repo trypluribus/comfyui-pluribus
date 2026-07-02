@@ -1,0 +1,1766 @@
+{
+  "id": "morning-people-spot",
+  "revision": 0,
+  "last_node_id": 35,
+  "last_link_id": 37,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -1180,
+        -60
+      ],
+      "size": [
+        340,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1,
+            18,
+            31
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2,
+            19,
+            29,
+            30
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            10,
+            27,
+            36
+          ]
+        }
+      ],
+      "title": "SDXL base (shared)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CheckpointLoaderSimple"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoraLoader",
+      "pos": [
+        -1180,
+        120
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            5
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            3,
+            4
+          ]
+        }
+      ],
+      "title": "Identity LoRA · Sarah Chen (cleared)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "Woman877.v2.safetensors",
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": 3,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -760,
+        -60
+      ],
+      "size": [
+        420,
+        170
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            6
+          ]
+        }
+      ],
+      "title": "Shot 01 · positive",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "woman877, a woman in her mid 20s, sunlit modern kitchen at golden hour, softly smiling while pulling an espresso shot on a premium stainless espresso machine, steam rising, white linen shirt, warm amber tones, commercial product photography, 85mm, f/1.8, shallow depth of field, crisp product detail"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -760,
+        160
+      ],
+      "size": [
+        420,
+        140
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "title": "Shot 01 · negative",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, deformed hands, extra fingers, warped face, watermark, text, logo distortion, oversaturated, plastic skin, low quality"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -760,
+        350
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "Shot 01 · 1216x832",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1216,
+        832,
+        1
+      ]
+    },
+    {
+      "id": 6,
+      "type": "KSampler",
+      "pos": [
+        -280,
+        -60
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 5
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 6
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 7
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            9
+          ]
+        }
+      ],
+      "title": "Shot 01 · sample",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        271828,
+        "fixed",
+        28,
+        6.5,
+        "dpmpp_2m",
+        "karras",
+        1.0
+      ]
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        60,
+        -60
+      ],
+      "size": [
+        200,
+        60
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 9
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11,
+            12
+          ]
+        }
+      ],
+      "title": "Shot 01 · decode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        320,
+        -60
+      ],
+      "size": [
+        340,
+        340
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [],
+      "title": "Shot 01 · hero still",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "morning_people/01_hero_still"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "KlingImage2VideoNode",
+      "pos": [
+        720,
+        -60
+      ],
+      "size": [
+        420,
+        340
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "start_frame",
+          "type": "IMAGE",
+          "link": 12
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            13
+          ]
+        },
+        {
+          "name": "video_id",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "name": "duration",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Shot 01 · animate (Kling 2.5 turbo)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "KlingImage2VideoNode"
+      },
+      "widgets_values": [
+        "Slow cinematic dolly-in: the woman finishes pulling the espresso shot, steam curls through golden morning light, she lifts the cup, takes a slow sip and smiles toward the window. Subtle handheld warmth, commercial grade, crisp machine reflections.",
+        "jump cuts, warped face, distorted hands, extra limbs, flicker, text, watermark",
+        "kling-v2-5-turbo",
+        0.8,
+        "pro",
+        "16:9",
+        "5"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "SaveVideo",
+      "pos": [
+        1200,
+        -60
+      ],
+      "size": [
+        500,
+        400
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 13
+        }
+      ],
+      "outputs": [],
+      "title": "Shot 01 · hero 5s clip",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "SaveVideo"
+      },
+      "widgets_values": [
+        "video/morning_people/01_hero",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "LoadImage",
+      "pos": [
+        -1180,
+        760
+      ],
+      "size": [
+        300,
+        340
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            14
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Reference · marcus_ref.png",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "marcus_ref.png",
+        "image"
+      ]
+    },
+    {
+      "id": 12,
+      "type": "GeminiImage2Node",
+      "pos": [
+        -760,
+        760
+      ],
+      "size": [
+        440,
+        400
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 14,
+          "shape": 7
+        },
+        {
+          "name": "files",
+          "type": "GEMINI_INPUT_FILES",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            15
+          ]
+        },
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "Shot 02 · identity composite (Nano Banana 2)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "GeminiImage2Node"
+      },
+      "widgets_values": [
+        "Place the man from the reference photo in the same sunlit modern kitchen, leaning on the counter beside a premium stainless espresso machine, holding a double-walled glass espresso cup, relaxed morning energy, charcoal henley, golden-hour window light, photoreal commercial photography. Preserve the man's facial identity exactly.",
+        "Nano Banana 2 (Gemini 3.1 Flash Image)",
+        20260702,
+        "fixed",
+        "16:9",
+        "2K",
+        "IMAGE",
+        ""
+      ]
+    },
+    {
+      "id": 13,
+      "type": "SaveImage",
+      "pos": [
+        -240,
+        760
+      ],
+      "size": [
+        340,
+        340
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 15
+        }
+      ],
+      "outputs": [],
+      "title": "Shot 02 · marcus variant",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "morning_people/02_marcus_variant"
+      ]
+    },
+    {
+      "id": 14,
+      "type": "LoadImage",
+      "pos": [
+        -1180,
+        1320
+      ],
+      "size": [
+        300,
+        340
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            16
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Reference · elena_ref.png",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "elena_ref.png",
+        "image"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "FluxKontextProImageNode",
+      "pos": [
+        -760,
+        1320
+      ],
+      "size": [
+        440,
+        360
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_image",
+          "type": "IMAGE",
+          "link": 16,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17
+          ]
+        }
+      ],
+      "title": "Shot 03 · identity edit (Flux Kontext Pro)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "FluxKontextProImageNode"
+      },
+      "widgets_values": [
+        "The woman from the input image now stands in a bright modern kitchen pouring a cappuccino from a premium espresso machine, morning window light, editorial commercial look, cream knit sweater. Preserve her facial identity and hair.",
+        "16:9",
+        3.0,
+        50,
+        20260702,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 16,
+      "type": "SaveImage",
+      "pos": [
+        -240,
+        1320
+      ],
+      "size": [
+        340,
+        340
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "title": "Shot 03 · elena alt casting",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "morning_people/03_elena_alt"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "LoraLoader",
+      "pos": [
+        -1180,
+        1880
+      ],
+      "size": [
+        340,
+        130
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 18
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 19
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            22
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            20,
+            21
+          ]
+        }
+      ],
+      "title": "Community LoRA · unknown source",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "LoraLoader"
+      },
+      "widgets_values": [
+        "coffeehouse_regulars_SDXL_v3.safetensors",
+        0.85,
+        0.85
+      ]
+    },
+    {
+      "id": 18,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -760,
+        1880
+      ],
+      "size": [
+        420,
+        170
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            23
+          ]
+        }
+      ],
+      "title": "Shot 04 · positive",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "coffeehouse regulars, three people laughing around a kitchen island while espresso brews, premium espresso machine in frame, candid morning lifestyle, warm light, 35mm documentary commercial style"
+      ]
+    },
+    {
+      "id": 19,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -760,
+        2100
+      ],
+      "size": [
+        420,
+        140
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 21
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            24
+          ]
+        }
+      ],
+      "title": "Shot 04 · negative",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, deformed hands, extra fingers, warped face, watermark, text, logo distortion, oversaturated, plastic skin, low quality"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -760,
+        2290
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            25
+          ]
+        }
+      ],
+      "title": "Shot 04 · 1216x832",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1216,
+        832,
+        1
+      ]
+    },
+    {
+      "id": 21,
+      "type": "KSampler",
+      "pos": [
+        -280,
+        1880
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 22
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 23
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 24
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 25
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            26
+          ]
+        }
+      ],
+      "title": "Shot 04 · sample",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        314159,
+        "fixed",
+        28,
+        6.5,
+        "dpmpp_2m",
+        "karras",
+        1.0
+      ]
+    },
+    {
+      "id": 22,
+      "type": "VAEDecode",
+      "pos": [
+        60,
+        1880
+      ],
+      "size": [
+        200,
+        60
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 26
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 27
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            28
+          ]
+        }
+      ],
+      "title": "Shot 04 · decode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 23,
+      "type": "SaveImage",
+      "pos": [
+        320,
+        1880
+      ],
+      "size": [
+        340,
+        340
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 28
+        }
+      ],
+      "outputs": [],
+      "title": "Shot 04 · extras look-dev",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "morning_people/04_extras_lookdev"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -760,
+        2620
+      ],
+      "size": [
+        420,
+        170
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "title": "Shot 05 · positive (synthetic barista)",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "extreme close-up, a barista's hands tamping fresh espresso grounds, portafilter locking into an espresso machine, crema pouring into a clear glass, macro detail, steam, warm morning backlight, high-end tabletop commercial photography"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -760,
+        2840
+      ],
+      "size": [
+        420,
+        140
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            33
+          ]
+        }
+      ],
+      "title": "Shot 05 · negative",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "CLIPTextEncode"
+      },
+      "widgets_values": [
+        "blurry, deformed hands, extra fingers, warped face, watermark, text, logo distortion, oversaturated, plastic skin, low quality"
+      ]
+    },
+    {
+      "id": 26,
+      "type": "EmptyLatentImage",
+      "pos": [
+        -760,
+        3030
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            34
+          ]
+        }
+      ],
+      "title": "Shot 05 · 1216x832",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "EmptyLatentImage"
+      },
+      "widgets_values": [
+        1216,
+        832,
+        1
+      ]
+    },
+    {
+      "id": 27,
+      "type": "KSampler",
+      "pos": [
+        -280,
+        2620
+      ],
+      "size": [
+        300,
+        270
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 31
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 32
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 33
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 34
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            35
+          ]
+        }
+      ],
+      "title": "Shot 05 · sample",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        161803,
+        "fixed",
+        28,
+        6.5,
+        "dpmpp_2m",
+        "karras",
+        1.0
+      ]
+    },
+    {
+      "id": 28,
+      "type": "VAEDecode",
+      "pos": [
+        60,
+        2620
+      ],
+      "size": [
+        200,
+        60
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 35
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 36
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "title": "Shot 05 · decode",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 29,
+      "type": "SaveImage",
+      "pos": [
+        320,
+        2620
+      ],
+      "size": [
+        340,
+        340
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 37
+        }
+      ],
+      "outputs": [],
+      "title": "Shot 05 · synthetic B-roll",
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0",
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "morning_people/05_broll_synthetic"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "MarkdownNote",
+      "pos": [
+        -2080,
+        -60
+      ],
+      "size": [
+        400,
+        620
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# “Morning People” — 15s cutdown\n\nTalent-driven product spot: identity-consistent stills per shot, hero shot animated to video. Reads left → right; one lane per shot.\n\n**To render for real**\n1. Shot 01's identity LoRA (`Woman877.v2.safetensors` — synthetic character, commercial image use licensed) is real and renders locally. `coffeehouse_regulars_SDXL_v3.safetensors` stays a placeholder on purpose: it is the demo's unknown-source beat.\n2. Log into your Comfy account (Settings → User) and add credits — Nano Banana 2, Flux Kontext Pro and Kling are hosted Partner Nodes billed per run (≈$0.35 for the 5s Kling clip).\n3. Queue. SDXL lanes run locally on this Mac; API lanes need network.\n\nPluribus: run a rights scan before rendering — this graph deliberately contains uncleared and unknown people."
+      ]
+    },
+    {
+      "id": 31,
+      "type": "MarkdownNote",
+      "pos": [
+        -1560,
+        -60
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Shot 01 · Hero\nSarah Chen — **cleared** identity LoRA (small-appliance scope, through Dec 2026). Still → Kling 2.5-turbo image-to-video, 5s."
+      ]
+    },
+    {
+      "id": 32,
+      "type": "MarkdownNote",
+      "pos": [
+        -1560,
+        760
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Shot 02 · Lifestyle variant\nMarcus Reed reference photo → Nano Banana 2 identity composite. Marcus is **pending clearance** — expect a review flag."
+      ]
+    },
+    {
+      "id": 33,
+      "type": "MarkdownNote",
+      "pos": [
+        -1560,
+        1320
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Shot 03 · Alt casting\nElena Vasquez reference → Flux Kontext Pro edit. Elena is **restricted** (competing coffee-brand exclusivity) — left in from casting."
+      ]
+    },
+    {
+      "id": 34,
+      "type": "MarkdownNote",
+      "pos": [
+        -1560,
+        1880
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Shot 04 · Extras look-dev\nCommunity LoRA pulled from a model hub — **unidentified** real-person sources. Classic rights risk."
+      ]
+    },
+    {
+      "id": 35,
+      "type": "MarkdownNote",
+      "pos": [
+        -1560,
+        2620
+      ],
+      "size": [
+        340,
+        200
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## Shot 05 · Synthetic B-roll\nPrompt-only person (hands of a barista) — no real-person source in the chain, **synthetic, unverified**."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      1,
+      1,
+      2,
+      1,
+      "CLIP"
+    ],
+    [
+      3,
+      2,
+      1,
+      3,
+      0,
+      "CLIP"
+    ],
+    [
+      4,
+      2,
+      1,
+      4,
+      0,
+      "CLIP"
+    ],
+    [
+      5,
+      2,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      6,
+      3,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      7,
+      4,
+      0,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      8,
+      5,
+      0,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      9,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      10,
+      1,
+      2,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      11,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      7,
+      0,
+      9,
+      0,
+      "IMAGE"
+    ],
+    [
+      13,
+      9,
+      0,
+      10,
+      0,
+      "VIDEO"
+    ],
+    [
+      14,
+      11,
+      0,
+      12,
+      0,
+      "IMAGE"
+    ],
+    [
+      15,
+      12,
+      0,
+      13,
+      0,
+      "IMAGE"
+    ],
+    [
+      16,
+      14,
+      0,
+      15,
+      0,
+      "IMAGE"
+    ],
+    [
+      17,
+      15,
+      0,
+      16,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      1,
+      0,
+      17,
+      0,
+      "MODEL"
+    ],
+    [
+      19,
+      1,
+      1,
+      17,
+      1,
+      "CLIP"
+    ],
+    [
+      20,
+      17,
+      1,
+      18,
+      0,
+      "CLIP"
+    ],
+    [
+      21,
+      17,
+      1,
+      19,
+      0,
+      "CLIP"
+    ],
+    [
+      22,
+      17,
+      0,
+      21,
+      0,
+      "MODEL"
+    ],
+    [
+      23,
+      18,
+      0,
+      21,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      24,
+      19,
+      0,
+      21,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      25,
+      20,
+      0,
+      21,
+      3,
+      "LATENT"
+    ],
+    [
+      26,
+      21,
+      0,
+      22,
+      0,
+      "LATENT"
+    ],
+    [
+      27,
+      1,
+      2,
+      22,
+      1,
+      "VAE"
+    ],
+    [
+      28,
+      22,
+      0,
+      23,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      1,
+      1,
+      24,
+      0,
+      "CLIP"
+    ],
+    [
+      30,
+      1,
+      1,
+      25,
+      0,
+      "CLIP"
+    ],
+    [
+      31,
+      1,
+      0,
+      27,
+      0,
+      "MODEL"
+    ],
+    [
+      32,
+      24,
+      0,
+      27,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      33,
+      25,
+      0,
+      27,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      34,
+      26,
+      0,
+      27,
+      3,
+      "LATENT"
+    ],
+    [
+      35,
+      27,
+      0,
+      28,
+      0,
+      "LATENT"
+    ],
+    [
+      36,
+      1,
+      2,
+      28,
+      1,
+      "VAE"
+    ],
+    [
+      37,
+      28,
+      0,
+      29,
+      0,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "SHOT 01 · HERO — Sarah Chen (cleared) → I2V",
+      "bounding": [
+        -1600,
+        -160,
+        3340,
+        700
+      ],
+      "color": "#3f2d1d",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "SHOT 02 · LIFESTYLE — Marcus Reed (pending)",
+      "bounding": [
+        -1600,
+        660,
+        1740,
+        560
+      ],
+      "color": "#453a1e",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "SHOT 03 · ALT CASTING — Elena Vasquez (restricted)",
+      "bounding": [
+        -1600,
+        1220,
+        1740,
+        560
+      ],
+      "color": "#4a2320",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "SHOT 04 · EXTRAS — unknown community LoRA",
+      "bounding": [
+        -1600,
+        1780,
+        2300,
+        740
+      ],
+      "color": "#3a3a3a",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "SHOT 05 · B-ROLL — synthetic person, prompt only",
+      "bounding": [
+        -1600,
+        2520,
+        2300,
+        740
+      ],
+      "color": "#1e3a4a",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.15"
+  },
+  "version": 0.4
+}

@@ -1,0 +1,217 @@
+{
+  "revision": 0,
+  "last_node_id": 8,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "PluribusSourceMarker",
+      "pos": [80, 80],
+      "size": [360, 190],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "lora",
+        "Sarah_Chen_ID_SDXL.safetensors",
+        "Sarah Chen",
+        "Cleared roster LoRA."
+      ],
+      "title": "Cleared LoRA - Sarah"
+    },
+    {
+      "id": 2,
+      "type": "PluribusSourceMarker",
+      "pos": [480, 80],
+      "size": [360, 190],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "reference",
+        "sarah_ref.png",
+        "Sarah Chen",
+        "Cleared roster reference image."
+      ],
+      "title": "Cleared Reference - Sarah"
+    },
+    {
+      "id": 3,
+      "type": "PluribusSourceMarker",
+      "pos": [880, 80],
+      "size": [360, 190],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "reference",
+        "marcus_ref.png",
+        "Marcus Reed",
+        "Known roster person, not cleared yet."
+      ],
+      "title": "Needs Review - Marcus"
+    },
+    {
+      "id": 4,
+      "type": "PluribusSourceMarker",
+      "pos": [80, 340],
+      "size": [360, 190],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "reference",
+        "elena_ref.png",
+        "Elena Vasquez",
+        "Restriction exists in local roster."
+      ],
+      "title": "Restricted - Elena"
+    },
+    {
+      "id": 5,
+      "type": "PluribusSourceMarker",
+      "pos": [480, 340],
+      "size": [360, 190],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "reference",
+        "stock_crowd_julia.png",
+        "Unknown stock reference",
+        "Not found in local roster."
+      ],
+      "title": "Unidentified Reference"
+    },
+    {
+      "id": 6,
+      "type": "PluribusSourceMarker",
+      "pos": [880, 340],
+      "size": [360, 190],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "prompt",
+        "",
+        "Prompt-only barista",
+        "No known real-person source in the graph."
+      ],
+      "title": "Synthetic Prompt Marker"
+    },
+    {
+      "id": 7,
+      "type": "PluribusSourceMarker",
+      "pos": [80, 600],
+      "size": [360, 190],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "lora",
+        "aria_avatar.safetensors",
+        "Aria synthetic presenter",
+        "Cleared synthetic-only roster asset."
+      ],
+      "title": "Cleared Synthetic LoRA"
+    },
+    {
+      "id": 8,
+      "type": "PluribusSourceMarker",
+      "pos": [480, 600],
+      "size": [360, 190],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {"name": "source_kind", "type": "COMBO", "widget": {"name": "source_kind"}, "link": null},
+        {"name": "source_key", "type": "STRING", "widget": {"name": "source_key"}, "link": null},
+        {"name": "display_name", "type": "STRING", "widget": {"name": "display_name"}, "link": null},
+        {"name": "note", "type": "STRING", "widget": {"name": "note"}, "link": null}
+      ],
+      "outputs": [
+        {"name": "source_key", "type": "STRING", "links": []}
+      ],
+      "properties": {"Node name for S&R": "PluribusSourceMarker"},
+      "widgets_values": [
+        "lora",
+        "mystery_creator_v1.safetensors",
+        "Unknown LoRA",
+        "Unknown LoRA source for scanner behavior."
+      ],
+      "title": "Unidentified LoRA"
+    }
+  ],
+  "links": [],
+  "version": 0.4
+}

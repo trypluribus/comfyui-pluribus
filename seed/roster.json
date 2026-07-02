@@ -1,0 +1,69 @@
+{
+  "talent": [
+    {
+      "talent_id": "t_sarah",
+      "name": "Sarah Chen",
+      "asset_keys": ["Sarah_Chen_ID_SDXL.safetensors", "Woman877.v2.safetensors", "sarah_ref.png"],
+      "clearance_status": "cleared",
+      "scope": "Small-appliance campaigns, US, through Dec 2026",
+      "allowed_uses": ["social", "digital display", "in-store"],
+      "prohibited_uses": ["political", "alcohol", "gambling"],
+      "conflicts": [],
+      "union_status": "SAG-AFTRA",
+      "rep": "CAA",
+      "synthetic_only": false
+    },
+    {
+      "talent_id": "t_marcus",
+      "name": "Marcus Reed",
+      "asset_keys": ["marcus_ref.png"],
+      "clearance_status": "pending",
+      "scope": "",
+      "allowed_uses": [],
+      "prohibited_uses": [],
+      "conflicts": [],
+      "union_status": "non-union",
+      "rep": "",
+      "synthetic_only": false
+    },
+    {
+      "talent_id": "t_elena",
+      "name": "Elena Vasquez",
+      "asset_keys": ["elena_ref.png"],
+      "clearance_status": "restricted",
+      "scope": "Restriction on file; review against campaign before use",
+      "allowed_uses": ["beverage"],
+      "prohibited_uses": ["appliances"],
+      "conflicts": ["Exclusivity on file: competing coffee brand, beverage category, through Q4 2026"],
+      "union_status": "SAG-AFTRA",
+      "rep": "WME",
+      "synthetic_only": false
+    },
+    {
+      "talent_id": "t_aria",
+      "name": "Aria licensed synthetic presenter",
+      "asset_keys": ["aria_avatar.safetensors"],
+      "clearance_status": "cleared",
+      "scope": "Owned synthetic presenter, all categories",
+      "allowed_uses": ["all"],
+      "prohibited_uses": [],
+      "conflicts": [],
+      "union_status": "n/a",
+      "rep": "",
+      "synthetic_only": true
+    },
+    {
+      "talent_id": "t_devon",
+      "name": "Devon Park",
+      "asset_keys": ["Devon_Park_ID_SDXL.safetensors"],
+      "clearance_status": "cleared",
+      "scope": "All categories, US and EU, through 2027",
+      "allowed_uses": ["social", "digital display", "in-store", "broadcast"],
+      "prohibited_uses": ["political"],
+      "conflicts": [],
+      "union_status": "SAG-AFTRA",
+      "rep": "UTA",
+      "synthetic_only": false
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+[project]
+name = "comfyui-pluribus"
+version = "0.2.2"
+description = "Pluribus AI Production Clearance Layer - ComfyUI adapter"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

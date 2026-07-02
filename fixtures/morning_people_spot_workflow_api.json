@@ -1,0 +1,452 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "_meta": {
+      "title": "SDXL base (shared)"
+    }
+  },
+  "2": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "Woman877.v2.safetensors",
+      "strength_model": 0.8,
+      "strength_clip": 0.8,
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Identity LoRA · Sarah Chen (cleared)"
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "woman877, a woman in her mid 20s, sunlit modern kitchen at golden hour, softly smiling while pulling an espresso shot on a premium stainless espresso machine, steam rising, white linen shirt, warm amber tones, commercial product photography, 85mm, f/1.8, shallow depth of field, crisp product detail",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · positive"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, deformed hands, extra fingers, warped face, watermark, text, logo distortion, oversaturated, plastic skin, low quality",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · negative"
+    }
+  },
+  "5": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1216,
+      "height": 832,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Shot 01 · 1216x832"
+    }
+  },
+  "6": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 271828,
+      "steps": 28,
+      "cfg": 6.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "2",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · sample"
+    }
+  },
+  "7": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · decode"
+    }
+  },
+  "8": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "morning_people/01_hero_still",
+      "images": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · hero still"
+    }
+  },
+  "9": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Slow cinematic dolly-in: the woman finishes pulling the espresso shot, steam curls through golden morning light, she lifts the cup, takes a slow sip and smiles toward the window. Subtle handheld warmth, commercial grade, crisp machine reflections.",
+      "negative_prompt": "jump cuts, warped face, distorted hands, extra limbs, flicker, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · animate (Kling 2.5 turbo)"
+    }
+  },
+  "10": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/morning_people/01_hero",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "9",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 01 · hero 5s clip"
+    }
+  },
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "marcus_ref.png"
+    },
+    "_meta": {
+      "title": "Reference · marcus_ref.png"
+    }
+  },
+  "12": {
+    "class_type": "GeminiImage2Node",
+    "inputs": {
+      "prompt": "Place the man from the reference photo in the same sunlit modern kitchen, leaning on the counter beside a premium stainless espresso machine, holding a double-walled glass espresso cup, relaxed morning energy, charcoal henley, golden-hour window light, photoreal commercial photography. Preserve the man's facial identity exactly.",
+      "model": "Nano Banana 2 (Gemini 3.1 Flash Image)",
+      "seed": 20260702,
+      "aspect_ratio": "16:9",
+      "resolution": "2K",
+      "response_modalities": "IMAGE",
+      "system_prompt": "",
+      "images": [
+        "11",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 02 · identity composite (Nano Banana 2)"
+    }
+  },
+  "13": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "morning_people/02_marcus_variant",
+      "images": [
+        "12",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 02 · marcus variant"
+    }
+  },
+  "14": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "elena_ref.png"
+    },
+    "_meta": {
+      "title": "Reference · elena_ref.png"
+    }
+  },
+  "15": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "The woman from the input image now stands in a bright modern kitchen pouring a cappuccino from a premium espresso machine, morning window light, editorial commercial look, cream knit sweater. Preserve her facial identity and hair.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 20260702,
+      "prompt_upsampling": false,
+      "input_image": [
+        "14",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 03 · identity edit (Flux Kontext Pro)"
+    }
+  },
+  "16": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "morning_people/03_elena_alt",
+      "images": [
+        "15",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 03 · elena alt casting"
+    }
+  },
+  "17": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "coffeehouse_regulars_SDXL_v3.safetensors",
+      "strength_model": 0.85,
+      "strength_clip": 0.85,
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Community LoRA · unknown source"
+    }
+  },
+  "18": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "coffeehouse regulars, three people laughing around a kitchen island while espresso brews, premium espresso machine in frame, candid morning lifestyle, warm light, 35mm documentary commercial style",
+      "clip": [
+        "17",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Shot 04 · positive"
+    }
+  },
+  "19": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, deformed hands, extra fingers, warped face, watermark, text, logo distortion, oversaturated, plastic skin, low quality",
+      "clip": [
+        "17",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Shot 04 · negative"
+    }
+  },
+  "20": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1216,
+      "height": 832,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Shot 04 · 1216x832"
+    }
+  },
+  "21": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 314159,
+      "steps": 28,
+      "cfg": 6.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "17",
+        0
+      ],
+      "positive": [
+        "18",
+        0
+      ],
+      "negative": [
+        "19",
+        0
+      ],
+      "latent_image": [
+        "20",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 04 · sample"
+    }
+  },
+  "22": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "21",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Shot 04 · decode"
+    }
+  },
+  "23": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "morning_people/04_extras_lookdev",
+      "images": [
+        "22",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 04 · extras look-dev"
+    }
+  },
+  "24": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "extreme close-up, a barista's hands tamping fresh espresso grounds, portafilter locking into an espresso machine, crema pouring into a clear glass, macro detail, steam, warm morning backlight, high-end tabletop commercial photography",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Shot 05 · positive (synthetic barista)"
+    }
+  },
+  "25": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "blurry, deformed hands, extra fingers, warped face, watermark, text, logo distortion, oversaturated, plastic skin, low quality",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Shot 05 · negative"
+    }
+  },
+  "26": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1216,
+      "height": 832,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Shot 05 · 1216x832"
+    }
+  },
+  "27": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 161803,
+      "steps": 28,
+      "cfg": 6.5,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "24",
+        0
+      ],
+      "negative": [
+        "25",
+        0
+      ],
+      "latent_image": [
+        "26",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 05 · sample"
+    }
+  },
+  "28": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "27",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Shot 05 · decode"
+    }
+  },
+  "29": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "morning_people/05_broll_synthetic",
+      "images": [
+        "28",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot 05 · synthetic B-roll"
+    }
+  }
+}
