@@ -1,17 +1,21 @@
 [project]
 name = "comfyui-pluribus"
-version = "0.2.2"
-description = "Pluribus AI Production Clearance Layer - ComfyUI adapter"
-requires-python = ">=3.10"
+version = "0.3.0"
+description = "Rights scan, roster, and clearance inside your ComfyUI workflow — the Pluribus talent layer."
 license = { file = "LICENSE" }
+requires-python = ">=3.10"
 
 [project.urls]
+Homepage = "https://trypluribus.com/?src=comfyui"
 Repository = "https://github.com/trypluribus/comfyui-pluribus"
-Homepage = "https://trypluribus.com"
+Issues = "https://github.com/trypluribus/comfyui-pluribus/issues"
 
+# Comfy Registry metadata. PublisherId must match the publisher account
+# created at registry.comfy.org before `comfy node publish`.
 [tool.comfy]
 PublisherId = "pluribus"
-DisplayName = "Pluribus"
+DisplayName = "Pluribus — Rights Scan & Cleared Talent"
+Icon = "https://trypluribus.com/brand/app-icons/icon-amber-bg-512.png"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

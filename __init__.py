@@ -109,6 +109,38 @@ _HERE = os.path.dirname(__file__)
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
+
+def _resolve_data_dir() -> str:
+    """Writable directory for invite/action records.
+
+    Cloud-hosted ComfyUI often mounts custom_nodes read-only; fall back from
+    PLURIBUS_DATA_DIR -> <plugin>/data -> a per-user temp dir so the plugin
+    keeps working instead of crashing on first invite.
+    """
+    candidates = [
+        os.environ.get("PLURIBUS_DATA_DIR"),
+        os.path.join(_HERE, "data"),
+    ]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        try:
+            os.makedirs(candidate, exist_ok=True)
+            if os.access(candidate, os.W_OK):
+                return candidate
+        except OSError:
+            continue
+    import tempfile
+
+    fallback = os.path.join(tempfile.gettempdir(), "comfyui-pluribus")
+    os.makedirs(fallback, exist_ok=True)
+    print(
+        "[Pluribus] Plugin directory is not writable; invite records will be "
+        f"stored in {fallback} (set PLURIBUS_DATA_DIR to override)."
+    )
+    return fallback
+
+
 try:
     from server import PromptServer  # type: ignore[import-not-found]
 
@@ -117,7 +149,7 @@ try:
     register_routes(
         PromptServer.instance,
         roster_path=os.path.join(_HERE, "seed", "roster.json"),
-        actions_path=os.path.join(_HERE, "data", "invites.json"),
+        actions_path=os.path.join(_resolve_data_dir(), "invites.json"),
     )
     print("[Pluribus] Clearance layer routes registered.")
 except Exception as exc:  # pragma: no cover - ComfyUI runtime only.

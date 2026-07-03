@@ -108,7 +108,7 @@ function showDialog(queue, index, onDone) {
   segEmail.addEventListener("click", () => setDelivery("email"));
   segLink.addEventListener("click", () => setDelivery("link"));
 
-  const linkCode = el("code", { text: "pluribus.so/accept/… generated on send" });
+  const linkCode = el("code", { text: "trypluribus.com/accept/… generated on send" });
   const linkBox = el("div", { class: "plb-linkbox" }, linkCode, el("span", { class: "plb-meta plb-meta--dim", text: "single-use" }));
 
   const sendBtn = button(queueLabel("Send invite", queue, index), "primary", async () => {

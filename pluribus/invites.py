@@ -14,8 +14,12 @@ STATUS_BY_KIND = {
 # Unambiguous alphabet for human-readable accept codes (no 0/O/1/I/L).
 _CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
 
-# Placeholder domain until the web app ships a real accept flow.
-ACCEPT_URL_BASE = "https://pluribus.so/accept"
+# Accept links live on the Pluribus web app. The hosted accept flow is in
+# development; codes are recorded locally either way. Overridable for
+# dev/staging environments.
+ACCEPT_URL_BASE = os.environ.get(
+    "PLURIBUS_ACCEPT_URL_BASE", "https://trypluribus.com/accept"
+)
 
 
 def generate_accept_code() -> str:

@@ -114,7 +114,9 @@ def test_action_payload_invite_carries_email_and_accept_url(tmp_path):
         str(tmp_path / "invites.json"),
     )
     assert out["action"]["email"] == "marcus@example.com"
-    assert out["action"]["accept_url"].startswith("https://pluribus.so/accept/PL-")
+    assert out["action"]["accept_url"].startswith(
+        "https://trypluribus.com/accept/PL-"
+    )
     assert out["message"] == "Invite recorded for Marcus Reed."
 
 
