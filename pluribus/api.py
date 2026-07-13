@@ -18,12 +18,16 @@ from .replace import build_replacement
 
 
 def _available_actions(person: PersonInstance) -> list[str]:
-    if person.state == ClearanceState.NEEDS_REVIEW:
-        return ["invite", "route", "replace"]
-    if person.state == ClearanceState.RESTRICTED:
-        return ["route", "replace"]
-    if person.state == ClearanceState.UNIDENTIFIED:
-        return ["identify", "route", "replace"]
+    # A local graph scan detects possible person sources; it cannot determine
+    # rights or invitation eligibility. Those decisions begin only after the
+    # user links the source to a canonical project/person in Pluribus.
+    if person.state in {
+        ClearanceState.NEEDS_REVIEW,
+        ClearanceState.RESTRICTED,
+        ClearanceState.SYNTHETIC_UNVERIFIED,
+        ClearanceState.UNIDENTIFIED,
+    }:
+        return ["link", "not_person", "review"]
     return []
 
 
@@ -149,6 +153,7 @@ def scan_payload(
         "workflow_fingerprint": fingerprint,
         "summary": result.summary(),
         "persons": persons,
+        "issues": result.issues,
     }
 
 

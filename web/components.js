@@ -32,19 +32,20 @@ export function pluribusMark(size = 14) {
 }
 
 export const STATE_META = {
-  cleared: { tag: "Roster", status: "In roster · scope on file" },
-  needs_review: { tag: "Review", status: "Known source · terms needed" },
+  linked: { tag: "Linked", status: "Linked to a project person" },
+  review_required: { tag: "Review", status: "Source needs a human decision" },
+  not_person: { tag: "Not person", status: "Marked as not a real person" },
+  needs_review: { tag: "Review", status: "Known source · confirmation needed" },
   restricted: { tag: "Restricted", status: "Restriction on file" },
   synthetic_unverified: {
     tag: "Synthetic",
     status: "No known real-person source detected in graph",
   },
-  unidentified: { tag: "Unknown", status: "Unknown source · unmanaged" },
+  unidentified: { tag: "Detected", status: "Not linked to a person" },
 };
 
 // Canvas-safe hex equivalents of the state colors (reticles draw on 2D canvas).
 export const STATE_HEX = {
-  cleared: "#5cb87a",
   needs_review: "#d9a53f",
   restricted: "#c43c3c",
   synthetic_unverified: "#5b9bd0",
@@ -102,7 +103,6 @@ const OP_LABELS = {
   CreateVideo: null,
   PreviewImage: null,
   PluribusSourceMarker: null,
-  PluribusClearedTalent: null,
 };
 
 export function labelForClass(classType) {
@@ -197,22 +197,29 @@ export function toast(message) {
 
 export function statusLine(person) {
   const meta = STATE_META[person.state] || { status: person.state };
-  const rosterStatus = el(
+  return el(
     "div",
     { class: "plb-status-line" },
     el("span", { class: "plb-dot" }),
     el("span", { text: meta.status })
   );
-  if (person.terms_status !== "accepted") return rosterStatus;
+}
+
+export function statusAxes(personState, requestState, internalState) {
   return el(
     "div",
-    { class: "plb-status-stack" },
-    rosterStatus,
-    el(
-      "div",
-      { class: "plb-status-line plb-terms-accepted" },
-      el("span", { class: "plb-dot" }),
-      el("span", { text: "Terms accepted · scope review still required" })
-    )
+    { class: "plb-axis-stack" },
+    axis("Person", personState || "Not linked"),
+    axis("Request", requestState || "Not ready"),
+    axis("Internal", internalState || "Not reviewed")
+  );
+}
+
+function axis(label, value) {
+  return el(
+    "div",
+    { class: "plb-axis" },
+    el("span", { class: "plb-axis-label", text: label }),
+    el("span", { class: "plb-axis-value", text: value })
   );
 }

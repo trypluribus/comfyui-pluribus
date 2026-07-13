@@ -161,6 +161,19 @@ export function workflowName() {
   );
 }
 
+// Stable local identity for unsaved workflows. It is serialized with the
+// ComfyUI workflow metadata but never sent upstream; the Python binding store
+// turns it into a separate random public workflowRef.
+export function localWorkflowKey() {
+  const graph = currentGraph();
+  if (!graph) return `session:${crypto.randomUUID()}`;
+  graph.extra ||= {};
+  if (!graph.extra.pluribus_workflow_key) {
+    graph.extra.pluribus_workflow_key = crypto.randomUUID();
+  }
+  return String(graph.extra.pluribus_workflow_key);
+}
+
 export async function personMatchesCurrentWorkflow(person) {
   if (
     !person?.workflow_fingerprint ||
@@ -172,4 +185,15 @@ export async function personMatchesCurrentWorkflow(person) {
   return (
     (await workflowFingerprint(await snapshotWorkflow())) === person.workflow_fingerprint
   );
+}
+
+export async function scanMatchesCurrentWorkflow(scan) {
+  if (
+    !scan?.workflow_fingerprint ||
+    !scan?.workflow_name ||
+    scan.workflow_name !== workflowName()
+  ) {
+    return false;
+  }
+  return (await workflowFingerprint(await snapshotWorkflow())) === scan.workflow_fingerprint;
 }

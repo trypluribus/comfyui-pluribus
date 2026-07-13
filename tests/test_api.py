@@ -50,7 +50,7 @@ def test_scan_payload_serializes_blake_fields_and_state_actions():
     assert person["union_status"] == "non-union"
     assert person["synthetic_only"] is False
     assert person["replacement_asset_key"] == "sarah_ref.png"
-    assert person["available_actions"] == ["invite", "route", "replace"]
+    assert person["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_scan_payload_unidentified_never_invites():
@@ -61,7 +61,7 @@ def test_scan_payload_unidentified_never_invites():
     }
     person = scan_payload(api, _engine())["persons"][0]
     assert person["state"] == "unidentified"
-    assert person["available_actions"] == ["identify", "route", "replace"]
+    assert person["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_scan_payload_synthetic_has_no_invite_or_replacement():
@@ -76,8 +76,37 @@ def test_scan_payload_synthetic_has_no_invite_or_replacement():
     }
     person = scan_payload(api, _engine())["persons"][0]
     assert person["state"] == "synthetic_unverified"
-    assert person["available_actions"] == []
+    assert person["available_actions"] == ["link", "not_person", "review"]
     assert person["replacement_asset_key"] == ""
+
+
+def test_scan_payload_excludes_incomplete_marker_and_returns_local_issue():
+    api = {
+        "30": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "reference",
+                "source_key": "",
+                "display_name": "",
+                "note": "",
+            },
+        },
+        "31": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "reference",
+                "source_key": "theo-park-storyboard-reference-v1",
+                "display_name": "Theo Park",
+                "note": "Supporting runner storyboard reference.",
+            },
+        },
+    }
+
+    out = scan_payload(api, _engine())
+
+    assert [person["name"] for person in out["persons"]] == ["Theo Park"]
+    assert out["issues"][0]["node_id"] == "30"
+    assert out["issues"][0]["code"] == "incomplete_source_marker"
 
 
 def test_replace_payload_wraps_updated_workflow():
@@ -440,7 +469,7 @@ def test_scan_payload_reads_accepted_invite_each_time_and_removes_invite_action(
     assert first["state"] == "needs_review"
     assert first["terms_status"] == "accepted"
     assert first["terms_accepted_at"] == "2026-07-04T10:00:00Z"
-    assert first["available_actions"] == ["route", "replace"]
+    assert first["available_actions"] == ["link", "not_person", "review"]
     assert second["terms_status"] == "accepted"
     assert "invite" not in second["available_actions"]
 
@@ -465,7 +494,7 @@ def test_scan_payload_draft_does_not_look_accepted_or_remove_invite(tmp_path):
 
     assert person["terms_status"] is None
     assert person["terms_accepted_at"] is None
-    assert person["available_actions"] == ["invite", "route", "replace"]
+    assert person["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_scan_payload_derives_canonical_scope_statements_from_graph():
@@ -572,7 +601,7 @@ def test_accepted_terms_do_not_cross_workflow_boundary(tmp_path):
     assert accepted["terms_status"] == "accepted"
     assert "invite" not in accepted["available_actions"]
     assert other["terms_status"] is None
-    assert "invite" in other["available_actions"]
+    assert other["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_accepted_terms_do_not_cross_scope_change_in_same_workflow(tmp_path):
@@ -597,7 +626,7 @@ def test_accepted_terms_do_not_cross_scope_change_in_same_workflow(tmp_path):
     assert original["terms_status"] == "accepted"
     assert changed["scope_statements"] != REACTOR_SCOPE
     assert changed["terms_status"] is None
-    assert "invite" in changed["available_actions"]
+    assert changed["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_any_api_graph_change_strictly_invalidates_accepted_terms(tmp_path):
@@ -624,7 +653,7 @@ def test_any_api_graph_change_strictly_invalidates_accepted_terms(tmp_path):
     assert before["scope_statements"] == after["scope_statements"]
     assert before["terms_status"] == "accepted"
     assert after["terms_status"] is None
-    assert "invite" in after["available_actions"]
+    assert after["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_pre_fingerprint_accepted_record_is_conservatively_not_displayed(tmp_path):
@@ -645,7 +674,7 @@ def test_pre_fingerprint_accepted_record_is_conservatively_not_displayed(tmp_pat
     person = scan_payload(api, _engine(), path, workflow_name=WORKFLOW)["persons"][0]
 
     assert person["terms_status"] is None
-    assert "invite" in person["available_actions"]
+    assert person["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_accepted_terms_do_not_replace_restricted_roster_state(tmp_path):
@@ -667,7 +696,7 @@ def test_accepted_terms_do_not_replace_restricted_roster_state(tmp_path):
 
     assert person["state"] == "restricted"
     assert person["terms_status"] == "accepted"
-    assert person["available_actions"] == ["route", "replace"]
+    assert person["available_actions"] == ["link", "not_person", "review"]
 
 
 def test_validation_error_does_not_write_local_draft(tmp_path):

@@ -32,6 +32,9 @@ class FakeRoutes:
     def get(self, path):
         return self._register("GET", path)
 
+    def put(self, path):
+        return self._register("PUT", path)
+
 
 class FakePromptServer:
     def __init__(self):
@@ -39,8 +42,10 @@ class FakePromptServer:
 
 
 class FakeRequest:
-    def __init__(self, body):
+    def __init__(self, body, match_info=None, query=None):
         self.body = body
+        self.match_info = match_info or {}
+        self.query = query or {}
 
     async def json(self):
         return self.body
@@ -320,3 +325,180 @@ def test_scan_routes_register_and_wrapped_scan_returns_context(tmp_path):
     assert payload["workflow_name"] == "Morning People"
     assert payload["workflow_fingerprint"] == "b" * 64
     assert payload["persons"][0]["workflow_fingerprint"] == "b" * 64
+
+
+def test_clean_runtime_scan_has_no_bundled_roster_clearance(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        connection_path=str(tmp_path / "connection.json"),
+    )
+    handler = prompt_server.routes.handlers[("POST", "/pluribus/scan")]
+    workflow = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "sarah_ref.png"}},
+        "2": {"class_type": "IPAdapter", "inputs": {"image": ["1", 0]}},
+        "9": {"class_type": "SaveImage", "inputs": {"images": ["2", 0]}},
+    }
+
+    response = run(handler(FakeRequest({"workflow": workflow, "workflow_name": "Fresh"})))
+    person = response_json(response)["persons"][0]
+
+    assert person["state"] == "unidentified"
+    assert person["talent_id"] is None
+    assert person["available_actions"] == ["link", "not_person", "review"]
+
+
+def test_binding_routes_mint_opaque_refs_and_associate_project(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        connection_path=str(tmp_path / "connection.json"),
+        bindings_path=str(tmp_path / "bindings.json"),
+    )
+    resolve = prompt_server.routes.handlers[("POST", "/pluribus/workflows/resolve")]
+    resolved = response_json(
+        run(
+            resolve(
+                FakeRequest(
+                    {"localWorkflowKey": "/private/Client Ad.json", "graphHash": "a" * 64}
+                )
+            )
+        )
+    )
+    workflow_ref = resolved["workflowRef"]
+
+    associate = prompt_server.routes.handlers[("PUT", "/pluribus/workflows/{workflow_ref}")]
+    associated = response_json(
+        run(
+            associate(
+                FakeRequest(
+                    {"projectId": "project-1", "workflowKind": "storyboard"},
+                    {"workflow_ref": workflow_ref},
+                )
+            )
+        )
+    )
+    source_resolve = prompt_server.routes.handlers[
+        ("POST", "/pluribus/workflows/{workflow_ref}/sources/resolve")
+    ]
+    source = response_json(
+        run(
+            source_resolve(
+                FakeRequest(
+                    {
+                        "localSourceKey": "/private/people/alex-reference.png",
+                        "sourceKind": "reference",
+                    },
+                    {"workflow_ref": workflow_ref},
+                )
+            )
+        )
+    )
+
+    assert associated["projectId"] == "project-1"
+    assert associated["workflowKind"] == "storyboard"
+    assert len(source["sourceRef"]) == 64
+    assert "alex-reference" not in json.dumps(source)
+
+
+def test_source_links_route_sends_only_opaque_manifest(tmp_path, monkeypatch):
+    prompt_server = FakePromptServer()
+    captured = {}
+
+    async def put_project_source_links(_connection_path, project_id, body):
+        captured.update({"project_id": project_id, "body": body})
+        return 200, {"project": {"id": project_id}}
+
+    monkeypatch.setattr(remote, "put_project_source_links", put_project_source_links)
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        connection_path=str(tmp_path / "connection.json"),
+        bindings_path=str(tmp_path / "bindings.json"),
+    )
+    resolve = prompt_server.routes.handlers[("POST", "/pluribus/workflows/resolve")]
+    workflow_ref = response_json(
+        run(resolve(FakeRequest({"localWorkflowKey": "private-workflow", "graphHash": "a" * 64})))
+    )["workflowRef"]
+    source_resolve = prompt_server.routes.handlers[
+        ("POST", "/pluribus/workflows/{workflow_ref}/sources/resolve")
+    ]
+    source_ref = response_json(
+        run(
+            source_resolve(
+                FakeRequest(
+                    {"localSourceKey": "/private/alex.png", "sourceKind": "reference"},
+                    {"workflow_ref": workflow_ref},
+                )
+            )
+        )
+    )["sourceRef"]
+    handler = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/projects/{project_id}/source-links")
+    ]
+
+    response = run(
+        handler(
+            FakeRequest(
+                {
+                    "workflowRef": workflow_ref,
+                    "workflowKind": "storyboard",
+                    "sources": [
+                        {
+                            "sourceRef": source_ref,
+                            "sourceKind": "reference",
+                            "sourceKey": "/private/alex.png",
+                            "sourceNodeId": "12",
+                            "prompt": "private prompt",
+                            "disposition": "linked",
+                            "talentRecordIds": ["talent-1"],
+                            "operations": [
+                                {"node_id": "44", "class_type": "IPAdapter"}
+                            ],
+                        }
+                    ],
+                },
+                {"project_id": "project-1"},
+            )
+        )
+    )
+
+    assert response.status == 200
+    assert captured["project_id"] == "project-1"
+    outbound = json.dumps(captured["body"])
+    assert "/private" not in outbound
+    assert "private prompt" not in outbound
+    assert "node_id" not in outbound
+    assert captured["body"]["sources"][0]["operations"] == [
+        {"classType": "IPAdapter"}
+    ]
+    synced_binding = response_json(
+        run(resolve(FakeRequest({"localWorkflowKey": "private-workflow"})))
+    )
+    assert synced_binding["manifestHash"] == captured["body"]["manifestHash"]
+
+
+def test_workspace_project_routes_are_registered(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+    )
+    expected = {
+        ("GET", "/pluribus/workspace"),
+        ("POST", "/pluribus/workspace"),
+        ("GET", "/pluribus/projects"),
+        ("POST", "/pluribus/projects"),
+        ("GET", "/pluribus/projects/{project_id}"),
+        ("POST", "/pluribus/projects/{project_id}/people"),
+        ("PUT", "/pluribus/projects/{project_id}/source-links"),
+        ("PUT", "/pluribus/projects/{project_id}/use"),
+        ("POST", "/pluribus/projects/{project_id}/confirmation-requests"),
+    }
+    assert expected <= set(prompt_server.routes.handlers)

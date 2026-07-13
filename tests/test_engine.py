@@ -123,6 +123,95 @@ def test_source_marker_node_is_scanned_without_output_edge():
     assert person.provenance == ["PluribusSourceMarker"]
 
 
+def test_blank_source_marker_is_ignored_and_reported_as_incomplete():
+    api = {
+        "30": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "reference",
+                "source_key": "",
+                "display_name": "",
+                "note": "",
+            },
+        }
+    }
+
+    result = _scan(api)
+
+    assert result.persons == []
+    assert result.issues == [
+        {
+            "code": "incomplete_source_marker",
+            "node_id": "30",
+            "message": (
+                "Pluribus Source Marker is incomplete and was ignored. "
+                "Add a source key (or describe a prompt-only source)."
+            ),
+        }
+    ]
+
+
+def test_blank_duplicate_does_not_hide_populated_marker_fields():
+    api = {
+        "30": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "reference",
+                "source_key": "",
+                "display_name": "",
+                "note": "",
+            },
+        },
+        "31": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "reference",
+                "source_key": "nadia-brooks-character-sheet-v1",
+                "display_name": "Nadia Brooks",
+                "note": "Lead runner character-sheet reference.",
+            },
+        },
+    }
+
+    result = _scan(api)
+
+    assert len(result.persons) == 1
+    assert result.persons[0].source_key == "nadia-brooks-character-sheet-v1"
+    assert result.persons[0].name == "Nadia Brooks"
+    assert result.persons[0].note == "Lead runner character-sheet reference."
+    assert [issue["node_id"] for issue in result.issues] == ["30"]
+
+
+def test_prompt_marker_without_key_requires_a_description():
+    blank = {
+        "40": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "prompt",
+                "source_key": "",
+                "display_name": "",
+                "note": "",
+            },
+        }
+    }
+    described = {
+        "41": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "prompt",
+                "source_key": "",
+                "display_name": "Prompt-only background runner",
+                "note": "No external reference image or likeness model.",
+            },
+        }
+    }
+
+    assert _scan(blank).persons == []
+    person = _scan(described).persons[0]
+    assert person.name == "Prompt-only background runner"
+    assert person.state == ClearanceState.SYNTHETIC_UNVERIFIED
+
+
 def test_source_node_id_points_at_lora_loader():
     api = {
         "4": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sd.safetensors"}},
@@ -233,52 +322,11 @@ def test_source_node_id_points_at_marker_node():
     assert person.source_node_id == "12"
 
 
-def test_connected_talent_node_classifies_as_cleared_with_ops():
+def test_retired_cleared_talent_node_never_creates_a_roster_decision():
     api = {
-        "2": {"class_type": "PluribusClearedTalent", "inputs": {"talent": "Sarah Chen"}},
-        "3": {"class_type": "LoadImage", "inputs": {"image": "storyboard.png"}},
-        "4": {
-            "class_type": "ReActorFaceSwap",
-            "inputs": {"input_image": ["3", 0], "source_image": ["2", 0]},
-        },
-        "5": {"class_type": "ImageUpscaleWithModel", "inputs": {"image": ["4", 0]}},
-        "9": {"class_type": "SaveImage", "inputs": {"images": ["5", 0]}},
+        "12": {"class_type": "PluribusClearedTalent", "inputs": {"talent": "Sarah Chen"}},
     }
-    persons = _scan(api).persons
-    talent = [p for p in persons if p.source_kind == "talent"]
-    assert len(talent) == 1
-    person = talent[0]
-    assert person.state == ClearanceState.CLEARED
-    assert person.name == "Sarah Chen"
-    assert person.source_node_id == "2"
-    assert [op["class_type"] for op in person.ops] == [
-        "ReActorFaceSwap",
-        "ImageUpscaleWithModel",
-    ]
-    assert [op["node_id"] for op in person.ops] == ["4", "5"]
-
-
-def test_unconnected_talent_node_found_by_standalone_pass():
-    api = {
-        "1": {"class_type": "LoadImage", "inputs": {"image": "product.png"}},
-        "9": {"class_type": "SaveImage", "inputs": {"images": ["1", 0]}},
-        "12": {"class_type": "PluribusClearedTalent", "inputs": {"talent": "Devon Park"}},
-    }
-    persons = _scan(api).persons
-    talent = [p for p in persons if p.source_kind == "talent"]
-    assert len(talent) == 1
-    assert talent[0].name == "Devon Park"
-    assert talent[0].state == ClearanceState.CLEARED
-    assert talent[0].ops == []
-
-
-def test_talent_node_with_unknown_name_is_unidentified():
-    api = {
-        "12": {"class_type": "PluribusClearedTalent", "inputs": {"talent": "Nobody Real"}},
-    }
-    person = _scan(api).persons[0]
-    assert person.state == ClearanceState.UNIDENTIFIED
-    assert person.source_kind == "talent"
+    assert _scan(api).persons == []
 
 
 def test_reference_person_gets_downstream_ops():

@@ -10,6 +10,15 @@ const state = {
   scannedAt: null,
   scanEpoch: 0, // incremented when ComfyUI configures a different graph
   connection: null, // { state, account_email?, ... } from /pluribus/connect
+  workspace: null, // explicit self-serve or existing canonical workspace
+  workspaceReady: false,
+  projects: [],
+  activeProjectId: null,
+  projectContext: null,
+  workflowBinding: null,
+  sourceRefs: {}, // local person identity -> opaque 64-hex source reference
+  manifestSynced: false, // current scan + workflow kind are canonical upstream
+  projectLoading: false,
 };
 
 const listeners = new Set();
@@ -36,7 +45,37 @@ export function invalidateScan() {
     error: null,
     scannedAt: null,
     scanEpoch: state.scanEpoch + 1,
+    sourceRefs: {},
+    manifestSynced: false,
+    workflowBinding: null,
+    activeProjectId: null,
+    projectContext: null,
   });
+}
+
+export function isWorkflowContextReady() {
+  const workflowRef = state.workflowBinding?.workflowRef;
+  return Boolean(
+    state.scan &&
+      state.workflow &&
+      state.manifestSynced &&
+      workflowRef &&
+      state.activeProjectId &&
+      state.workflowBinding?.projectId === state.activeProjectId &&
+      state.projectContext?.workflow?.workflowRef === workflowRef
+  );
+}
+
+export function activeProject() {
+  return state.projects.find((project) => project.id === state.activeProjectId) || null;
+}
+
+export function projectPeople() {
+  return state.projectContext?.people || state.projectContext?.project?.people || [];
+}
+
+export function projectSourceLinks() {
+  return state.projectContext?.sourceLinks || state.projectContext?.sources || [];
 }
 
 function inviteKey(person) {

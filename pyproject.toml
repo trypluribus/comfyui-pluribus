@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-pluribus"
-version = "0.3.0"
-description = "Rights scan, roster, and proposed-terms workflow inside ComfyUI — the Pluribus talent layer."
+version = "0.4.0"
+description = "People, intended-use, and recipient-confirmation workflow inside ComfyUI — the Pluribus talent layer."
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 

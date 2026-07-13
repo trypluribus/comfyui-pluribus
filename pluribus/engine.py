@@ -58,7 +58,6 @@ FACE_SOURCE_INPUTS_BY_TYPE = {
 LOAD_IMAGE_TYPES = {"LoadImage"}
 PROMPT_TYPES = {"CLIPTextEncode"}
 MARKER_TYPES = {"PluribusSourceMarker"}
-TALENT_TYPES = {"PluribusClearedTalent"}
 
 # Downstream node types that are plumbing, not operations on the likeness.
 OPS_IGNORE = {
@@ -66,7 +65,6 @@ OPS_IGNORE = {
     "CLIPTextEncode",
     "EmptyLatentImage",
     "LoadImage",
-    "PluribusClearedTalent",
     "PluribusSourceMarker",
     "PreviewImage",
     "SaveImage",
@@ -121,9 +119,19 @@ class ClearanceEngine:
             class_type = node.get("class_type")
             if class_type in MARKER_TYPES:
                 person = self._classify_marker(node_id, node)
-            elif class_type in TALENT_TYPES and node_id not in connected:
-                person = self._classify_talent(node_id, node, ["PluribusClearedTalent"], node_id)
             else:
+                continue
+            if person is None:
+                result.issues.append(
+                    {
+                        "code": "incomplete_source_marker",
+                        "node_id": node_id,
+                        "message": (
+                            "Pluribus Source Marker is incomplete and was ignored. "
+                            "Add a source key (or describe a prompt-only source)."
+                        ),
+                    }
+                )
                 continue
             identity = (person.output_node_id, person.source_kind, person.source_key)
             if identity not in seen:
@@ -168,12 +176,26 @@ class ClearanceEngine:
             output_id, "talent", key, provenance, asset, "", source_node_id
         )
 
-    def _classify_marker(self, node_id: str, node: dict) -> PersonInstance:
+    def _classify_marker(self, node_id: str, node: dict) -> PersonInstance | None:
         inputs = node.get("inputs", {})
-        kind = str(inputs.get("source_kind", "unknown"))
-        key = str(inputs.get("source_key", ""))
-        display_name = str(inputs.get("display_name", ""))
-        note = str(inputs.get("note", ""))
+        if not isinstance(inputs, dict):
+            return None
+        kind = str(inputs.get("source_kind") or "unknown").strip().lower()
+        key = str(inputs.get("source_key") or "").strip()
+        display_name = str(inputs.get("display_name") or "").strip()
+        note = str(inputs.get("note") or "").strip()
+
+        # Double-clicking a node-library result can insert two fresh marker
+        # nodes in ComfyUI. A blank marker is an annotation placeholder, not a
+        # person-bearing source, so it must never become actionable. Prompt
+        # markers may omit a key, but must include a human-readable name or
+        # note to distinguish an intentional prompt-only source from a blank
+        # node.
+        if kind == "prompt":
+            if not (key or display_name or note):
+                return None
+        elif not key:
+            return None
 
         if kind == "prompt" and not key:
             return PersonInstance(
@@ -204,10 +226,6 @@ class ClearanceEngine:
     def _classify_output(self, adapter: WorkflowAdapter, output_id: str) -> list[PersonInstance]:
         provenance = adapter.provenance_path(output_id)
         persons: list[PersonInstance] = []
-
-        talents = adapter.nodes_of_type(output_id, TALENT_TYPES)
-        for source_node_id, node in talents:
-            persons.append(self._classify_talent(output_id, node, provenance, source_node_id))
 
         loras = adapter.nodes_of_type(output_id, LORA_TYPES)
         for source_node_id, node in loras:

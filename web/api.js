@@ -88,3 +88,97 @@ export function disconnectPluribus() {
 export function syncInvites() {
   return post("/pluribus/invites/sync", {});
 }
+
+// ── Canonical project workflow (v0.4+) ────────────────────────────────
+
+async function requestJson(path, init = {}) {
+  const response = await fetch(path, init);
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    // Error below remains useful when an upstream proxy returned no JSON.
+  }
+  if (!response.ok) {
+    throw new Error(data.message || `${path} failed with ${response.status}`);
+  }
+  return data;
+}
+
+function jsonInit(method, body) {
+  return {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  };
+}
+
+export function getPluginWorkspace() {
+  return requestJson("/pluribus/workspace");
+}
+
+export function setupPluginWorkspace(payload) {
+  return requestJson("/pluribus/workspace", jsonInit("POST", payload));
+}
+
+export function listProjects() {
+  return requestJson("/pluribus/projects");
+}
+
+export function createProject(payload) {
+  return requestJson("/pluribus/projects", jsonInit("POST", payload));
+}
+
+export function getProject(projectId, workflowRef = "") {
+  const query = workflowRef ? `?workflowRef=${encodeURIComponent(workflowRef)}` : "";
+  return requestJson(`/pluribus/projects/${encodeURIComponent(projectId)}${query}`);
+}
+
+export function createProjectPerson(projectId, payload) {
+  return requestJson(
+    `/pluribus/projects/${encodeURIComponent(projectId)}/people`,
+    jsonInit("POST", payload)
+  );
+}
+
+export function saveProjectSourceLinks(projectId, payload) {
+  return requestJson(
+    `/pluribus/projects/${encodeURIComponent(projectId)}/source-links`,
+    jsonInit("PUT", payload)
+  );
+}
+
+export function saveProjectUse(projectId, payload) {
+  return requestJson(
+    `/pluribus/projects/${encodeURIComponent(projectId)}/use`,
+    jsonInit("PUT", payload)
+  );
+}
+
+export function createProjectConfirmation(projectId, payload) {
+  return requestJson(
+    `/pluribus/projects/${encodeURIComponent(projectId)}/confirmation-requests`,
+    jsonInit("POST", payload)
+  );
+}
+
+export function resolveLocalWorkflow(localWorkflowKey, graphHash = "") {
+  return requestJson(
+    "/pluribus/workflows/resolve",
+    jsonInit("POST", { localWorkflowKey, graphHash })
+  );
+}
+
+export function bindLocalWorkflow(workflowRef, projectId, workflowKind) {
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}`,
+    jsonInit("PUT", { projectId, workflowKind })
+  );
+}
+
+export function resolveLocalSource(workflowRef, localSourceKey, sourceKind) {
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}/sources/resolve`,
+    jsonInit("POST", { localSourceKey, sourceKind })
+  );
+}

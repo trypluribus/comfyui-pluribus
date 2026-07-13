@@ -3,24 +3,14 @@
 // the pairing UX: show the code, poll until approved, reflect the result.
 // Everything else in the plugin keeps working if the user never connects.
 
-import { disconnectPluribus, getConnection, pollConnect, startConnect, syncInvites } from "./api.js";
+import { disconnectPluribus, getConnection, pollConnect, startConnect } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
 import { setState } from "./store.js";
 
-export async function refreshConnection({ onInviteSync } = {}) {
+export async function refreshConnection() {
   try {
     const connection = await getConnection();
     setState({ connection });
-    if (connection?.state === "connected") {
-      // Pull invite statuses opportunistically; failures are non-fatal. If
-      // mount-time sync changed local records, let the panel rescan them.
-      try {
-        const result = await syncInvites();
-        if (result?.updated > 0) await onInviteSync?.(result);
-      } catch {
-        // Scanning and local records still work while the server is offline.
-      }
-    }
     return connection;
   } catch {
     // Local route unavailable (very old ComfyUI); leave connection unknown.
@@ -71,8 +61,8 @@ export function openConnectDialog(connection) {
       el("p", {
         class: "plb-connect-copy",
         text:
-          "Link this ComfyUI to your Pluribus account to keep invite records and " +
-          "accepted terms in one place. Scanning works without it.",
+          "Link this ComfyUI to your Pluribus account to keep project people, intended use, " +
+          "confirmation requests, and decisions in one place. Scanning works without it.",
       }),
     ];
     if (offline) {
@@ -169,8 +159,8 @@ export function openConnectDialog(connection) {
       el("p", {
         class: "plb-connect-copy",
         text:
-          "Invite acceptance syncs into your local records and appears as Terms accepted " +
-          "after the next rights scan. This status is not a roster-clearance decision.",
+          "Project state syncs when the panel loads or you choose Find people. Recipient decisions " +
+          "stay separate from your team's internal review.",
       }),
       el(
         "div",
@@ -191,6 +181,13 @@ export function openConnectDialog(connection) {
             return;
           }
           await refreshConnection();
+          setState({
+            workspace: null,
+            workspaceReady: false,
+            projects: [],
+            activeProjectId: null,
+            projectContext: null,
+          });
           toast("Disconnected from Pluribus.");
           renderIntro();
         })

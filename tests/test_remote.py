@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import uuid
 
 import pytest
 
@@ -64,7 +65,7 @@ def test_start_pairing_stores_pending_and_returns_code(tmp_path):
     assert result["state"] == "pairing"
     assert result["user_code"] == "7Q2M-4KXR"
     assert fetch.calls[0]["url"].endswith("/api/plugin/pair")
-    assert "ComfyUI" in fetch.calls[0]["payload"]["deviceLabel"]
+    assert fetch.calls[0]["payload"]["deviceLabel"] == "ComfyUI plugin"
 
     status = remote.get_status(connection_path(tmp_path))
     assert status["state"] == "pairing"
@@ -244,9 +245,10 @@ def test_push_invite_sends_payload_and_returns_canonical_record(tmp_path):
     assert call["url"].endswith("/api/plugin/invites")
     assert call["token"] == "plt_token"
     assert call["payload"]["name"] == "Marcus Reed"
-    assert call["payload"]["workflowName"] == "Morning People"
-    assert call["payload"]["workflowFingerprint"] == "a" * 64
-    assert call["payload"]["sourceKind"] == "reference"
+    assert "workflowName" not in call["payload"]
+    assert "workflowFingerprint" not in call["payload"]
+    assert "sourceKey" not in call["payload"]
+    assert "sourceKind" not in call["payload"]
     assert call["payload"]["scopeStatements"] == ["Use of their likeness in this workflow"]
     assert call["payload"]["clientRequestId"] == "6ccfc0e8-094a-4d69-a8df-70c864a1e9f4"
 
@@ -449,3 +451,278 @@ def test_fetch_invite_statuses(tmp_path):
     assert result["invites"][0]["emailAttemptStartedAt"] == "2026-07-10T12:00:00Z"
     assert result["invites"][0]["emailReconciliationRequired"] is True
     assert fetch.calls[0]["method"] == "GET"
+
+
+def test_workspace_proxy_requires_connection_and_maps_offline(tmp_path):
+    path = connection_path(tmp_path)
+    status, result = run(remote.fetch_workspace(path, fetch=make_fetch([])))
+    assert status == 401
+    assert result["state"] == "disconnected"
+
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    status, result = run(
+        remote.fetch_workspace(path, fetch=make_fetch([remote.RemoteUnavailable("down")]))
+    )
+    assert status == 503
+    assert result["state"] == "offline"
+
+
+def test_workspace_project_and_person_proxies_send_only_contract_fields(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(200, {"ok": True}), (200, {"ok": True}), (200, {"ok": True})])
+
+    run(
+        remote.create_workspace(
+            path,
+            {"organizationName": "Studio", "licenseeType": "individual", "secret": "drop"},
+            fetch,
+        )
+    )
+    run(
+        remote.create_project(
+            path,
+            {
+                "title": "Campaign",
+                "clientName": "Client",
+                "description": "Ad",
+                "workflowName": "must not pass",
+            },
+            fetch,
+        )
+    )
+    run(
+        remote.create_project_person(
+            path,
+            "project-1",
+            {
+                "mode": "new",
+                "displayName": "Alex Person",
+                "talentEmail": "alex@example.com",
+                "sourceKey": "/private/alex.png",
+                "representative": {
+                    "role": "manager",
+                    "email": "rep@example.com",
+                    "nodeId": "44",
+                },
+            },
+            fetch,
+        )
+    )
+
+    assert fetch.calls[0]["payload"] == {
+        "organizationName": "Studio",
+        "licenseeType": "individual",
+    }
+    assert fetch.calls[1]["payload"] == {
+        "title": "Campaign",
+        "clientName": "Client",
+        "description": "Ad",
+    }
+    assert fetch.calls[2]["payload"] == {
+        "mode": "new",
+        "displayName": "Alex Person",
+        "talentEmail": "alex@example.com",
+        "representative": {"role": "manager", "email": "rep@example.com"},
+    }
+
+
+def test_project_sync_can_be_scoped_to_active_workflow(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(200, {"projectContext": {}})])
+    workflow_ref = str(uuid.uuid4())
+
+    status, _ = run(
+        remote.fetch_project(path, "project-1", workflow_ref, fetch)
+    )
+
+    assert status == 200
+    assert fetch.calls[0]["url"] == (
+        f"https://x/api/plugin/projects/project-1?workflowRef={workflow_ref}"
+    )
+
+
+def test_source_links_proxy_strips_paths_prompts_and_node_ids(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(200, {"project": {}})])
+    workflow_ref = str(uuid.uuid4())
+    body = {
+        "workflowRef": workflow_ref,
+        "workflowKind": "storyboard",
+        "graphHash": "a" * 64,
+        "sources": [
+            {
+                "sourceRef": "b" * 64,
+                "sourceKind": "reference",
+                "sourceKey": "/Users/alex/private-face.png",
+                "sourceNodeId": "12",
+                "prompt": "put Alex in an ad",
+                "disposition": "linked",
+                "talentRecordIds": ["talent-1"],
+                "operations": [
+                    {"class_type": "IPAdapter", "node_id": "99"},
+                ],
+            }
+        ],
+    }
+
+    status, _ = run(remote.put_project_source_links(path, "project-1", body, fetch))
+
+    assert status == 200
+    payload = fetch.calls[0]["payload"]
+    assert payload["workflowRef"] == workflow_ref
+    assert payload["graphHash"] == "a" * 64
+    assert payload["sources"][0]["operations"] == [{"classType": "IPAdapter"}]
+    serialized = json.dumps(payload)
+    assert "private-face" not in serialized
+    assert "put Alex" not in serialized
+    assert "node_id" not in serialized
+    assert "sourceNodeId" not in serialized
+
+
+def test_use_proxy_rejects_local_graph_material_without_network_call(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([])
+
+    with pytest.raises(ValueError, match="local-only"):
+        run(
+            remote.put_project_use(
+                path,
+                "project-1",
+                {"brandName": "Client", "prompt": "private generation prompt"},
+                fetch,
+            )
+        )
+    assert fetch.calls == []
+
+
+def test_use_proxy_rebuilds_structured_scope_and_people_payload(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(200, {"scope": {}})])
+    workflow_ref = str(uuid.uuid4())
+
+    status, _ = run(
+        remote.put_project_use(
+            path,
+            "project-1",
+            {
+                "workflowRef": workflow_ref,
+                "rightsManifestHash": "a" * 64,
+                "usageType": "AI-assisted advertising video",
+                "deliverables": ["15-second video"],
+                "channels": ["social"],
+                "platforms": ["Instagram"],
+                "territories": ["United States"],
+                "languages": ["English"],
+                "usageWindowStart": "2026-08-01",
+                "usageWindowEnd": None,
+                "productCategory": "Footwear",
+                "paidMediaAllowed": True,
+                "organicMediaAllowed": True,
+                "compensationHandling": "handled_separately",
+                "compensation": None,
+                "exclusivityHandling": "not_part_of_request",
+                "exclusivity": None,
+                "finalCreativeApprovalRequired": True,
+                "aiActions": [
+                    {
+                        "talentRecordId": "talent-1",
+                        "modality": "face",
+                        "action": "edit",
+                        "requiresFinalApproval": True,
+                        "notes": "Identity-preserving image edit",
+                        "untrustedExtra": "/private/source.png",
+                    }
+                ],
+                "people": [
+                    {
+                        "talentRecordId": "talent-1",
+                        "restrictions": None,
+                        "usageComfort": "Paid social only",
+                        "representativeAuthority": None,
+                        "untrustedExtra": "/private/source.png",
+                    }
+                ],
+                "untrustedExtra": {"raw": "graph"},
+            },
+            fetch,
+        )
+    )
+
+    assert status == 200
+    assert fetch.calls[0]["payload"] == {
+        "workflowRef": workflow_ref,
+        "usageType": "AI-assisted advertising video",
+        "deliverables": ["15-second video"],
+        "channels": ["social"],
+        "platforms": ["Instagram"],
+        "territories": ["United States"],
+        "languages": ["English"],
+        "paidMediaAllowed": True,
+        "organicMediaAllowed": True,
+        "usageWindowStart": "2026-08-01",
+        "usageWindowEnd": None,
+        "productCategory": "Footwear",
+        "finalCreativeApprovalRequired": True,
+        "compensationHandling": "handled_separately",
+        "compensation": None,
+        "exclusivityHandling": "not_part_of_request",
+        "exclusivity": None,
+        "rightsManifestHash": "a" * 64,
+        "aiActions": [
+            {
+                "talentRecordId": "talent-1",
+                "modality": "face",
+                "action": "edit",
+                "requiresFinalApproval": True,
+                "notes": "Identity-preserving image edit",
+            }
+        ],
+        "people": [
+            {
+                "talentRecordId": "talent-1",
+                "restrictions": None,
+                "usageComfort": "Paid social only",
+                "representativeAuthority": None,
+            }
+        ],
+    }
+
+
+def test_confirmation_proxy_preserves_stable_request_and_workflow_refs(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(201, {"confirmationRequest": {"id": "request-1"}})])
+    request_id = str(uuid.uuid4())
+    workflow_ref = str(uuid.uuid4())
+
+    status, _ = run(
+        remote.create_confirmation_request(
+            path,
+            "project-1",
+            {
+                "clientRequestId": request_id,
+                "workflowRef": workflow_ref,
+                "rightsManifestHash": "a" * 64,
+                "talentRecordId": "talent-1",
+                "recipientEmail": "rep@example.com",
+                "delivery": "email",
+                "sourcePath": "/private/ref.png",
+            },
+            fetch,
+        )
+    )
+
+    assert status == 201
+    assert fetch.calls[0]["payload"] == {
+        "clientRequestId": request_id,
+        "workflowRef": workflow_ref,
+        "rightsManifestHash": "a" * 64,
+        "talentRecordId": "talent-1",
+        "recipientEmail": "rep@example.com",
+        "delivery": "email",
+    }

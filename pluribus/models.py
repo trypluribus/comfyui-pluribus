@@ -55,6 +55,7 @@ class PersonInstance:
 @dataclass
 class ScanResult:
     persons: list[PersonInstance] = field(default_factory=list)
+    issues: list[dict[str, str]] = field(default_factory=list)
 
     def summary(self) -> dict[str, int]:
         counts = {state.value: 0 for state in ClearanceState}

@@ -1,7 +1,12 @@
-// CS4 — the Rights scan panel. Renders into whatever container it's given
-// (native sidebar tab or the floating fallback) from store state.
+// Canonical Pluribus project workflow for ComfyUI.
+// Detection stays local. Connected actions send only opaque source references,
+// normalized operation classes, project/person IDs, and the intended-use form.
 
-import { recordAction, replaceSource, scanWorkflow, syncInvites } from "./api.js";
+import {
+  resolveLocalSource,
+  resolveLocalWorkflow,
+  scanWorkflow,
+} from "./api.js";
 import {
   avatar,
   button,
@@ -9,75 +14,132 @@ import {
   metaLabel,
   opsChips,
   pluribusMark,
-  statusLine,
-  STATE_META,
+  statusAxes,
   toast,
 } from "./components.js";
 import {
-  applyReplacementToGraph,
   applyReticles,
   focusNodeById,
   focusPerson,
+  localWorkflowKey,
   personMatchesCurrentWorkflow,
   snapshotWorkflow,
   workflowName,
 } from "./canvas.js";
 import { workflowFingerprint } from "./fingerprint.js";
 import { openConnectDialog, refreshConnection } from "./connect.js";
-import { openInviteDialog } from "./invite.js";
-import { renderRosterTab } from "./roster.js";
+import { linkedPeopleForSource, openLinkPersonDialog, setSourceDisposition } from "./link-person.js";
+import { personLocalKey } from "./manifest.js";
+import { renderPeople } from "./people.js";
 import {
+  loadProductContext,
+  openProjectDialog,
+  openWorkspaceSetupDialog,
+  selectProject,
+} from "./project.js";
+import { internalStateForPerson, requestStateForPerson } from "./request-confirmation.js";
+import {
+  activeProject,
   getState,
-  invitablePersons,
-  needsActionCount,
+  projectSourceLinks,
   setState,
   subscribe,
-  wasInvited,
 } from "./store.js";
+import { renderUseBrief } from "./use-brief.js";
+import { syncCurrentRightsManifest } from "./sync-manifest.js";
 
-const expanded = new Set(); // person identity → details open, survives re-renders
+const expanded = new Set();
 let root = null;
-let activeTab = "scan"; // "scan" | "roster"
+let mountedContainer = null;
+let unsubscribePanel = null;
+let activeTab = "sources";
+let contextRequested = false;
 
 export function mountPanel(container) {
+  // ComfyUI may call a native sidebar tab's render callback more than once for
+  // the same live container. Reuse that mount so we do not duplicate controls
+  // or store subscriptions. If the host discarded the previous DOM (or hands
+  // us a replacement container), tear down our listener before remounting.
+  if (mountedContainer === container && root && container.contains(root)) return root;
+
+  unmountPanel();
   root = el("div", { class: "plb-root" });
+  mountedContainer = container;
   container.appendChild(root);
-  subscribe(render);
-  render(getState());
-  if (!getState().scan && !getState().scanning) scan();
-  void refreshConnection({
-    onInviteSync: async () => {
-      await scan();
-    },
+  unsubscribePanel = subscribe((state) => {
+    render(state);
+    maybeLoadConnectedContext(state);
   });
+  render(getState());
+  if (!getState().scan && !getState().scanning) void scan();
+  void refreshConnection();
   return root;
 }
 
-export async function scan({ syncFirst = false } = {}) {
+export function unmountPanel() {
+  unsubscribePanel?.();
+  unsubscribePanel = null;
+  root?.remove();
+  root = null;
+  mountedContainer = null;
+}
+
+function maybeLoadConnectedContext(state) {
+  if (state.connection?.state !== "connected") {
+    contextRequested = false;
+    return;
+  }
+  if (state.workspaceReady || state.projectLoading || contextRequested) return;
+  contextRequested = true;
+  void loadProductContext()
+    .catch((error) => toast(error.message || "Could not load your Pluribus workspace."))
+    .finally(() => {
+      contextRequested = false;
+    });
+}
+
+export async function scan() {
   const scanEpoch = getState().scanEpoch;
   setState({ scanning: true, error: null });
   try {
-    if (syncFirst) {
-      // Manual rescans always wait for the local sync route. Disconnected
-      // calls return immediately; connected calls fetch server status first.
-      try {
-        await syncInvites();
-      } catch (error) {
-        console.warn("[Pluribus] invite sync failed before rescan", error);
-      }
-    }
     const workflow = await snapshotWorkflow();
     const name = workflowName();
-    const fingerprint = await workflowFingerprint(workflow);
-    const scanResult = await scanWorkflow(workflow, name, fingerprint);
+    const graphHash = await workflowFingerprint(workflow);
+    const [scanResult, workflowBinding] = await Promise.all([
+      scanWorkflow(workflow, name, graphHash),
+      resolveLocalWorkflow(localWorkflowKey(), graphHash),
+    ]);
     if (getState().scanEpoch !== scanEpoch) return;
+
+    const sourceEntries = await Promise.all(
+      (scanResult.persons || []).map(async (person) => {
+        const source = await resolveLocalSource(
+          workflowBinding.workflowRef,
+          person.source_key || `${person.source_kind}:${person.source_node_id || person.output_node_id}`,
+          person.source_kind || "unknown"
+        );
+        return [personLocalKey(person), source.sourceRef];
+      })
+    );
     setState({
       scan: scanResult,
       workflow,
+      workflowBinding,
+      sourceRefs: Object.fromEntries(sourceEntries),
+      manifestSynced: false,
       scanning: false,
       scannedAt: new Date(),
     });
-    applyReticles(scanResult.persons);
+    applyReticles(scanResult.persons || []);
+
+    if (workflowBinding.projectId && getState().connection?.state === "connected") {
+      await loadProductContext();
+      if (getState().activeProjectId !== workflowBinding.projectId) {
+        await selectProject(workflowBinding.projectId, workflowBinding.workflowKind || "production");
+      } else {
+        await syncCurrentRightsManifest();
+      }
+    }
   } catch (error) {
     if (getState().scanEpoch !== scanEpoch) return;
     console.error("[Pluribus] scan failed", error);
@@ -85,21 +147,51 @@ export async function scan({ syncFirst = false } = {}) {
   }
 }
 
-function personKey(person) {
-  return `${person.output_node_id}|${person.source_kind}|${person.source_key}`;
-}
-
 function render(state) {
   if (!root) return;
-  if (activeTab === "roster") {
-    const rosterBody = el("div", {
-      style: "display:flex;flex-direction:column;flex:1;min-height:0;overflow-y:auto",
-    });
-    root.replaceChildren(header(state), tabs(), rosterBody);
-    renderRosterTab(rosterBody);
-    return;
+  const content = el("div", { class: "plb-tab-content" });
+  if (activeTab === "people") renderPeople(content);
+  else if (activeTab === "use") renderUseBrief(content);
+  else content.replaceChildren(sourcesBody(state));
+  root.replaceChildren(header(state), tabs(), projectBand(state), content, footer(state));
+}
+
+function header(state) {
+  return el(
+    "div",
+    { class: "plb-header" },
+    el(
+      "div",
+      { class: "plb-header-brand" },
+      pluribusMark(15),
+      el("span", { class: "plb-wordmark", text: "Pluribus" }),
+      el("span", { class: "plb-header-sub", text: "People & use" })
+    ),
+    connectionChip(state)
+  );
+}
+
+function connectionChip(state) {
+  const connection = state.connection;
+  if (connection?.state === "connected") {
+    return el(
+      "button",
+      {
+        class: "plb-linked plb-linked--btn",
+        type: "button",
+        title: "Manage the Pluribus connection",
+        onclick: () => openConnectDialog(connection),
+      },
+      el("span", { class: "plb-dot" }),
+      el("span", { class: "plb-linked-email", text: connection.account_email || "connected" })
+    );
   }
-  root.replaceChildren(header(state), tabs(), body(state), footer(state));
+  return el("button", {
+    class: "plb-connect-cta",
+    type: "button",
+    text: connection?.state === "pairing" ? "Pairing…" : "Connect",
+    onclick: () => openConnectDialog(connection),
+  });
 }
 
 function tabs() {
@@ -113,193 +205,195 @@ function tabs() {
         render(getState());
       },
     });
-  return el("div", { class: "plb-tabs" }, tab("scan", "Rights scan"), tab("roster", "Roster"));
-}
-
-function header(state) {
   return el(
     "div",
-    { class: "plb-header" },
-    el(
+    { class: "plb-tabs" },
+    tab("sources", "Sources"),
+    tab("people", "People"),
+    tab("use", "Intended use")
+  );
+}
+
+function projectBand(state) {
+  if (state.connection?.state !== "connected") {
+    return el(
       "div",
-      { class: "plb-header-brand" },
-      pluribusMark(15),
-      el("span", { class: "plb-wordmark", text: "Pluribus" }),
-      el("span", { class: "plb-header-sub", text: "Talent layer" })
-    ),
-    connectionChip(state)
-  );
-}
-
-function connectionChip(state) {
-  if (state.scanning) {
-    return el(
-      "span",
-      { class: "plb-linked" },
-      el("span", { class: "plb-dot" }),
-      el("span", { text: "scanning" })
+      { class: "plb-project-band" },
+      el("span", { text: "Scan stays local" }),
+      el("small", { text: "Connect to create projects, link people, and request confirmation." })
     );
   }
-  const connection = state.connection;
-  if (connection?.state === "connected") {
+  if (!state.workspaceReady || state.projectLoading) {
+    return el("div", { class: "plb-project-band" }, el("span", { text: "Loading workspace…" }));
+  }
+  if (!state.workspace) {
     return el(
-      "button",
-      {
-        class: "plb-linked plb-linked--btn",
-        type: "button",
-        title: "Connected to Pluribus — click to manage",
-        onclick: () => openConnectDialog(connection),
-      },
-      el("span", { class: "plb-dot" }),
-      el("span", { class: "plb-linked-email", text: connection.account_email || "connected" })
+      "div",
+      { class: "plb-project-band" },
+      el("span", { text: "Workspace setup required" }),
+      button("Set up", "secondary", () => openWorkspaceSetupDialog())
     );
   }
-  return el(
-    "button",
+  if (!state.projects.length) {
+    return el(
+      "div",
+      { class: "plb-project-band" },
+      el("span", { text: state.workspace.displayName || "Your workspace" }),
+      button("New project", "secondary", () => openProjectDialog())
+    );
+  }
+  const picker = el(
+    "select",
     {
-      class: "plb-connect-cta",
-      type: "button",
-      title: "Link this ComfyUI to your Pluribus account",
-      text: connection?.state === "pairing" ? "Pairing…" : "Connect",
-      onclick: () => openConnectDialog(connection),
-    }
+      class: "plb-project-select",
+      "aria-label": "Project",
+      onchange: async (event) => {
+        try {
+          await selectProject(event.target.value, kind.value);
+        } catch (error) {
+          toast(error.message || "Could not switch projects.");
+        }
+      },
+    },
+    state.projects.map((project) => {
+      const option = el("option", { value: project.id, text: project.title });
+      option.selected = project.id === state.activeProjectId;
+      return option;
+    })
+  );
+  const kind = el(
+    "select",
+    {
+      class: "plb-kind-select",
+      "aria-label": "Workflow kind",
+      onchange: async (event) => {
+        if (state.activeProjectId) await selectProject(state.activeProjectId, event.target.value);
+      },
+    },
+    workflowKindOptions(state.workflowBinding?.workflowKind || "production")
+  );
+  return el(
+    "div",
+    { class: "plb-project-band" },
+    picker,
+    kind,
+    button("+", "secondary", () => openProjectDialog())
   );
 }
 
-function body(state) {
+function sourcesBody(state) {
   if (state.error) {
     return el(
       "div",
       { class: "plb-list" },
-      el(
-        "div",
-        { class: "plb-empty" },
-        pluribusMark(20),
-        el("div", { text: state.error.message || String(state.error) }),
-        button("Try again", "secondary", scan)
-      )
+      empty(state.error.message || String(state.error), button("Try again", "secondary", scan))
     );
   }
   if (!state.scan) {
     return el(
       "div",
       { class: "plb-list" },
-      el(
-        "div",
-        { class: "plb-empty" },
-        pluribusMark(22),
-        metaLabel("Talent layer", true),
-        el("div", {
-          text: state.scanning
-            ? "Scanning the current workflow…"
-            : "Scan graph provenance and roster records for person-bearing sources and the operations that alter them.",
-        }),
-        state.scanning ? null : button("Scan workflow", "primary", scan)
+      empty(
+        state.scanning
+          ? "Finding person-bearing sources in the current graph…"
+          : "Find marked references, identity models, and other person-bearing inputs. This scan does not inspect rendered pixels.",
+        state.scanning ? null : button("Find people", "primary", scan)
       )
     );
   }
-  if (state.scan.workflow_name !== workflowName()) {
-    return el(
-      "div",
-      { class: "plb-list" },
+  const wrap = el("div", { class: "plb-sources" }, sourceSummary(state));
+  const persons = state.scan.persons || [];
+  const issues = state.scan.issues || [];
+  if (issues.length) {
+    const issueNodes = issues
+      .map((issue) => issue.node_id)
+      .filter(Boolean)
+      .map((nodeId) => `#${nodeId}`)
+      .join(", ");
+    wrap.append(
       el(
         "div",
-        { class: "plb-empty" },
-        pluribusMark(20),
-        el("div", { text: "The open workflow changed. Rescan before using these results." }),
-        button("Rescan", "primary", () => scan({ syncFirst: true }))
+        { class: "plb-warnstrip" },
+        el("span", { class: "plb-warnmark", text: "!" }),
+        el("span", {
+          text: `${issues.length} incomplete Pluribus ${issues.length === 1 ? "marker was" : "markers were"} ignored${issueNodes ? ` (${issueNodes})` : ""}. Add a source key, or describe a prompt-only source, then find people again.`,
+        })
       )
     );
   }
-
-  const wrap = el("div", { style: "display:flex;flex-direction:column;flex:1;min-height:0" });
-  wrap.append(summary(state), cardList(state));
+  if (!persons.length) {
+    wrap.append(
+      empty(
+        "No supported person-bearing source was derived from this graph. This scan does not inspect rendered pixels. Add a Pluribus Source Marker when detection needs a hand."
+      )
+    );
+  } else {
+    wrap.append(el("div", { class: "plb-list" }, persons.map((person) => sourceCard(person, state))));
+  }
   return wrap;
 }
 
-function summary(state) {
-  const persons = state.scan.persons;
-  const needAction = needsActionCount();
-  const synthetic = persons.filter((p) => p.state === "synthetic_unverified").length;
-
-  const tiles = el(
-    "div",
-    { class: "plb-tiles" },
-    tile(persons.length, persons.length === 1 ? "source" : "sources", "var(--plb-ink)"),
-    tile(needAction, "need action", needAction ? "var(--plb-bad)" : "var(--plb-ok)"),
-    tile(synthetic, "synthetic", "var(--plb-synth)")
-  );
-
-  const block = el(
+function sourceSummary(state) {
+  const persons = state.scan.persons || [];
+  const linked = persons.filter((person) => linkedPeopleForSource(person).length > 0).length;
+  const handled = persons.filter((person) => sourceDisposition(person) === "not_person").length;
+  const remaining = Math.max(0, persons.length - linked - handled);
+  return el(
     "div",
     { class: "plb-summary" },
     el(
       "div",
       { class: "plb-summary-title" },
-      metaLabel(`Scan of ${state.scan.workflow_name || "current graph"}`, true),
+      metaLabel("Current graph · local detection", true),
       el("span", { class: "plb-meta plb-meta--dim", text: stamp(state.scannedAt) })
     ),
-    tiles
-  );
-
-  if (needAction > 0) {
-    block.append(
-      el(
-        "div",
-        { class: "plb-warnstrip" },
-        el("span", { class: "plb-warnmark", text: "⚠" }),
-        el("span", {
-          text:
-            `${needAction} ${needAction === 1 ? "source still needs" : "sources still need"} review. ` +
-            `Check accepted terms, restrictions, and unidentified sources before relying on this scan.`,
-        })
-      )
-    );
-  }
-  return block;
-}
-
-function tile(value, label, color) {
-  const number = el("div", { class: "plb-tile-n", text: String(value) });
-  number.style.color = color;
-  return el("div", { class: "plb-tile" }, number, el("div", { class: "plb-tile-l", text: label }));
-}
-
-function cardList(state) {
-  const persons = state.scan.persons;
-  if (!persons.length) {
-    return el(
+    el(
       "div",
-      { class: "plb-list" },
-      el(
-        "div",
-        { class: "plb-empty" },
-        pluribusMark(20),
-        el("div", {
-          text:
-            "No supported person-bearing source was derived from the current graph. " +
-            "This scan does not inspect rendered pixels.",
-        })
-      )
-    );
-  }
-  return el("div", { class: "plb-list" }, persons.map((person) => card(person, state)));
+      { class: "plb-tiles" },
+      tile(persons.length, "detected", "var(--plb-ink)"),
+      tile(linked, "linked", "var(--plb-ok)"),
+      tile(remaining, "need action", remaining ? "var(--plb-warn)" : "var(--plb-ok)")
+    ),
+    remaining
+      ? el(
+          "div",
+          { class: "plb-warnstrip" },
+          el("span", { class: "plb-warnmark", text: "!" }),
+          el("span", {
+            text: `${remaining} ${remaining === 1 ? "source needs" : "sources need"} a person link or an explicit not-a-person decision.`,
+          })
+        )
+      : null
+  );
 }
 
-function card(person, state) {
-  const meta = STATE_META[person.state] || { tag: person.state, status: person.state };
-  const key = personKey(person);
-
+function sourceCard(person, state) {
+  const key = personLocalKey(person);
+  const linked = linkedPeopleForSource(person);
+  const disposition = sourceDisposition(person);
+  const personState = linked.length
+    ? linked.map((candidate) => candidate.displayName || candidate.name).join(", ")
+    : disposition === "not_person"
+      ? "Not a person"
+      : disposition === "review_required"
+        ? "Review required"
+        : "Not linked";
+  const requestState = linked.length
+    ? summarizeStates(linked.map(requestStateForPerson))
+    : "Not ready";
+  const internalState = linked.length
+    ? summarizeStates(linked.map(internalStateForPerson))
+    : "Not reviewed";
   const top = el(
     "div",
     {
       class: "plb-card-top",
-      title: "Click to locate in graph",
+      title: "Locate this source in the graph",
       onclick: () => {
         if (!focusPerson(person)) toast("Node not found in the open graph.");
       },
     },
-    avatar(person),
+    avatar({ ...person, name: linked[0]?.displayName || linked[0]?.name || "?" }),
     el(
       "div",
       { class: "plb-card-id" },
@@ -309,160 +403,131 @@ function card(person, state) {
         el(
           "div",
           {},
-          el("div", { class: "plb-card-name", text: person.name || "Unidentified source" }),
-          el("div", { class: "plb-card-src", text: srcLine(person) })
+          el("div", {
+            class: "plb-card-name",
+            text: linked.length ? personState : person.name || "Detected person source",
+          }),
+          el("div", { class: "plb-card-src", text: localSourceLabel(person) })
         ),
-        el("span", { class: "plb-kind-tag", text: meta.tag })
-      ),
-      statusLine(person)
+        el("span", { class: "plb-kind-tag", text: dispositionLabel(disposition, linked.length) })
+      )
     )
   );
-
   const actions = el("div", { class: "plb-actions" });
-  if (person.available_actions.includes("invite")) {
-    const alreadyInvited = wasInvited(person);
-    const invite = button(alreadyInvited ? "Invite sent" : "Invite for terms", "primary", () =>
-      openInviteDialog([person])
+  const link = button(linked.length ? "Edit people" : "Link to person", "primary", async () => {
+    if (!(await ensureCurrentPerson(person))) return;
+    openLinkPersonDialog(person);
+  });
+  link.disabled = !state.activeProjectId;
+  actions.append(link);
+  if (!linked.length) {
+    actions.append(
+      button("Not a person", "secondary", () => setSourceDisposition(person, "not_person")),
+      button("Review", "ghost", () => setSourceDisposition(person, "review_required"))
     );
-    invite.disabled = alreadyInvited;
-    actions.append(invite);
   }
-  const detailsBtn = button(expanded.has(key) ? "Hide details" : "Details", "secondary", () => {
+  const details = button(expanded.has(key) ? "Hide" : "Details", "secondary", () => {
     if (expanded.has(key)) expanded.delete(key);
     else expanded.add(key);
     render(getState());
   });
-  actions.append(detailsBtn);
-
-  const node = el(
+  actions.append(details);
+  const card = el(
     "section",
-    { class: `plb-card ${person.state}` },
+    { class: `plb-card ${linked.length ? "linked" : "unidentified"}` },
     top,
+    statusAxes(personState, requestState, internalState),
     opsChips(person, (nodeId) => {
       if (!focusNodeById(nodeId)) toast("Node not found in the open graph.");
     }),
     actions
   );
-  if (expanded.has(key)) node.append(details(person, state));
-  return node;
-}
-
-function srcLine(person) {
-  const kind = person.source_kind || "";
-  return person.source_key ? `${kind} · ${person.source_key}` : kind;
-}
-
-function details(person, state) {
-  const rows = [
-    ...(person.terms_status === "accepted"
-      ? [["Terms", person.terms_accepted_at ? `Accepted ${person.terms_accepted_at}` : "Accepted"]]
-      : []),
-    ["Scope", person.scope || "Not on file"],
-    ["Union", person.union_status || "Not on file"],
-    ["Rep", person.rep || "Not on file"],
-    ["Node", `#${person.source_node_id || person.output_node_id}`],
-    ["Path", (person.provenance || []).join(" → ")],
-  ];
-  const scope = rows.map(([k, v]) =>
-    el("div", { class: "plb-scope-row" }, el("dt", { text: k }), el("dd", { text: v }))
-  );
-
-  const wrap = el("div", { class: "plb-details" }, scope);
-
-  if (person.allowed_uses.length || person.prohibited_uses.length) {
-    wrap.append(
+  if (expanded.has(key)) {
+    card.append(
       el(
         "div",
-        { class: "plb-uses" },
-        el(
-          "div",
-          { class: "allowed" },
-          el("h5", { text: "Allowed" }),
-          el("ul", {}, person.allowed_uses.map((use) => el("li", { text: use })))
-        ),
-        el(
-          "div",
-          { class: "prohibited" },
-          el("h5", { text: "Prohibited" }),
-          el("ul", {}, person.prohibited_uses.map((use) => el("li", { text: use })))
-        )
+        { class: "plb-details" },
+        detailRow("Local node", `#${person.source_node_id || person.output_node_id}`),
+        detailRow("Source type", person.source_kind || "unknown"),
+        detailRow("Detected path", (person.provenance || []).join(" → ") || "Marker only"),
+        el("p", {
+          class: "plb-note",
+          text:
+            "The source path, graph, prompts, and media stay on this machine. Linking sends only an opaque source reference and normalized rights-relevant operation classes.",
+        })
       )
     );
   }
-  for (const conflict of person.conflicts || []) {
-    wrap.append(el("p", { class: "plb-conflict", text: conflict }));
-  }
-  if (person.note) wrap.append(el("p", { class: "plb-note", text: person.note }));
-
-  const extra = el("div", { class: "plb-actions" });
-  if (person.available_actions.includes("replace") && person.replacement_asset_key) {
-    extra.append(button("Replace with roster source", "secondary", () => replace(person, state)));
-  }
-  if (person.available_actions.includes("identify")) {
-    extra.append(button("Identify source", "secondary", () => act(person, "identify")));
-  }
-  if (person.available_actions.includes("route")) {
-    extra.append(button("Flag for review", "ghost", () => act(person, "route")));
-  }
-  if (extra.children.length) wrap.append(extra);
-  return wrap;
-}
-
-async function act(person, kind) {
-  if (!(await ensureCurrentPerson(person))) return;
-  try {
-    const data = await recordAction({
-      kind,
-      talent_id: person.talent_id,
-      name: person.name || "Unknown",
-      source_key: person.source_key,
-    });
-    toast(data.message);
-  } catch (error) {
-    toast(`Action failed: ${error.message}`);
-  }
-}
-
-async function replace(person, state) {
-  if (!(await ensureCurrentPerson(person))) return;
-  const target = person.replacement_asset_key;
-  try {
-    await replaceSource(state.workflow, person.source_key, target);
-    const changed = applyReplacementToGraph(person.source_key, target);
-    toast(
-      changed
-        ? `Replaced ${person.source_key} with ${target}.`
-        : "Replacement prepared, but no matching widget found in the open graph."
-    );
-    scan();
-  } catch (error) {
-    toast(`Replace failed: ${error.message}`);
-  }
+  return card;
 }
 
 function footer(state) {
-  if (state.scan && state.scan.workflow_name !== workflowName()) {
-    return el(
-      "div",
-      { class: "plb-footer" },
-      button("Rescan", "primary", () => scan({ syncFirst: true }))
-    );
-  }
-  const invitable = invitablePersons();
-  const inviteAll = button(
-    invitable.length ? `Invite all for terms (${invitable.length})` : "Invite all for terms",
-    "primary",
-    () => openInviteDialog(invitable)
-  );
-  inviteAll.disabled = !invitable.length;
+  const project = activeProject();
   return el(
     "div",
     { class: "plb-footer" },
-    inviteAll,
-    button(state.scanning ? "Scanning…" : "Rescan", "secondary", () =>
-      scan({ syncFirst: true })
-    )
+    el("span", {
+      class: "plb-footer-context",
+      text: project ? project.title : state.connection?.state === "connected" ? "No project selected" : "Local scan only",
+    }),
+    button(state.scanning ? "Finding…" : "Find people", "secondary", scan)
   );
+}
+
+function sourceDisposition(person) {
+  const sourceRef = getState().sourceRefs[personLocalKey(person)];
+  if (!sourceRef) return "detected";
+  const matches = projectSourceLinks().filter((link) =>
+    (link.sourceRef || link.source_ref) === sourceRef
+  );
+  if (matches.some((link) => link.disposition === "linked")) return "linked";
+  return matches[0]?.disposition || "detected";
+}
+
+function dispositionLabel(disposition, linkedCount) {
+  if (linkedCount > 1) return `${linkedCount} people`;
+  if (linkedCount === 1) return "Linked";
+  if (disposition === "not_person") return "Not person";
+  if (disposition === "review_required") return "Review";
+  return "Detected";
+}
+
+function localSourceLabel(person) {
+  const node = person.source_node_id || person.output_node_id;
+  return `${person.source_kind || "source"}${node ? ` · local node #${node}` : ""}`;
+}
+
+function tile(value, label, color) {
+  const number = el("div", { class: "plb-tile-n", text: String(value) });
+  number.style.color = color;
+  return el("div", { class: "plb-tile" }, number, el("div", { class: "plb-tile-l", text: label }));
+}
+
+function detailRow(label, value) {
+  return el("div", { class: "plb-scope-row" }, el("dt", { text: label }), el("dd", { text: value }));
+}
+
+function empty(message, action = null) {
+  return el("div", { class: "plb-empty" }, pluribusMark(20), el("div", { text: message }), action);
+}
+
+function workflowKindOptions(current) {
+  return [
+    ["character_sheet", "Character sheet"],
+    ["storyboard", "Storyboard"],
+    ["production", "Production"],
+    ["final", "Final review"],
+    ["other", "Other"],
+  ].map(([value, label]) => {
+    const node = el("option", { value, text: label });
+    node.selected = current === value;
+    return node;
+  });
+}
+
+function summarizeStates(values) {
+  const unique = [...new Set(values.filter(Boolean))];
+  return unique.length <= 1 ? unique[0] || "Not ready" : "Mixed — review each person";
 }
 
 async function ensureCurrentPerson(person) {
@@ -471,7 +536,7 @@ async function ensureCurrentPerson(person) {
   } catch (error) {
     console.warn("[Pluribus] could not verify workflow context", error);
   }
-  toast("The workflow changed after this scan. Rescan before taking action.");
+  toast("The graph changed after this scan. Find people again before taking action.");
   return false;
 }
 

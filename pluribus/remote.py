@@ -12,8 +12,11 @@ from __future__ import annotations
 import json
 import os
 import re
-import socket
+import uuid
+from copy import deepcopy
 from typing import Any, Awaitable, Callable
+
+from .bindings import SHA256_PATTERN, normalize_source_links
 
 from .storage import write_private_json
 
@@ -55,11 +58,9 @@ async def _default_fetch(
 
 
 def _device_label() -> str:
-    try:
-        host = socket.gethostname()
-    except OSError:
-        host = "unknown host"
-    return f"ComfyUI on {host}"[:80]
+    # Hostnames often contain a person's name, company, or internal network
+    # convention. Pairing only needs a useful product label.
+    return "ComfyUI plugin"
 
 
 def read_connection(path: str) -> dict | None:
@@ -180,6 +181,330 @@ async def poll_pairing(connection_path: str, fetch: Fetch | None = None) -> dict
     return {"state": "failed", "reason": result or "unknown"}
 
 
+async def _proxy_json(
+    connection_path: str,
+    method: str,
+    path: str,
+    payload: dict | None = None,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    """Make one authenticated request while preserving upstream JSON/status."""
+    fetch = fetch or _default_fetch
+    connection = read_connection(connection_path)
+    if not connection:
+        return 401, {
+            "state": "disconnected",
+            "message": "Connect this ComfyUI plugin to Pluribus first.",
+        }
+    try:
+        status, data = await fetch(
+            method,
+            f"{connection.get('server_url', SERVER_URL)}{path}",
+            payload,
+            connection["token"],
+        )
+    except RemoteUnavailable:
+        return 503, {
+            "state": "offline",
+            "message": "Pluribus could not be reached. Your local workflow was not changed.",
+        }
+    return status, data if isinstance(data, dict) else {}
+
+
+def _pick(body: object, fields: tuple[str, ...]) -> dict:
+    if not isinstance(body, dict):
+        raise ValueError("Request body must be an object.")
+    return {field: body[field] for field in fields if body.get(field) not in (None, "")}
+
+
+_FORBIDDEN_REMOTE_KEYS = {
+    "filename",
+    "filepath",
+    "graph",
+    "localworkflowkey",
+    "nodeid",
+    "nodes",
+    "outputnodeid",
+    "prompt",
+    "provenance",
+    "sourcekey",
+    "sourcenodeid",
+    "sourcepath",
+    "workflowfilename",
+    "workflowfingerprint",
+    "workflowjson",
+    "workflowname",
+}
+_OPAQUE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
+
+
+def _opaque_id(value: object, field: str) -> str:
+    normalized = str(value or "").strip()
+    if not _OPAQUE_ID_PATTERN.fullmatch(normalized):
+        raise ValueError(f"{field} must be an opaque identifier.")
+    return normalized
+
+
+def _assert_no_graph_material(value: object) -> None:
+    """Reject accidental graph/source leakage in otherwise structured bodies."""
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized_key = re.sub(r"[^a-z0-9]", "", str(key).lower())
+            if normalized_key in _FORBIDDEN_REMOTE_KEYS:
+                raise ValueError(f"{key} is local-only and cannot be sent to Pluribus.")
+            _assert_no_graph_material(child)
+    elif isinstance(value, list):
+        for child in value:
+            _assert_no_graph_material(child)
+
+
+async def fetch_workspace(
+    connection_path: str, fetch: Fetch | None = None
+) -> tuple[int, dict]:
+    return await _proxy_json(connection_path, "GET", "/api/plugin/workspace", fetch=fetch)
+
+
+async def create_workspace(
+    connection_path: str, body: dict, fetch: Fetch | None = None
+) -> tuple[int, dict]:
+    payload = _pick(body, ("organizationName", "licenseeType"))
+    return await _proxy_json(
+        connection_path, "POST", "/api/plugin/workspace", payload, fetch
+    )
+
+
+async def fetch_projects(
+    connection_path: str, fetch: Fetch | None = None
+) -> tuple[int, dict]:
+    return await _proxy_json(connection_path, "GET", "/api/plugin/projects", fetch=fetch)
+
+
+async def create_project(
+    connection_path: str, body: dict, fetch: Fetch | None = None
+) -> tuple[int, dict]:
+    payload = _pick(body, ("title", "clientName", "agencyName", "description"))
+    return await _proxy_json(
+        connection_path, "POST", "/api/plugin/projects", payload, fetch
+    )
+
+
+async def fetch_project(
+    connection_path: str,
+    project_id: str,
+    workflow_ref: str | None = None,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    suffix = ""
+    if workflow_ref:
+        try:
+            workflow_ref = str(uuid.UUID(str(workflow_ref)))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValueError("workflowRef must be a UUID.") from exc
+        suffix = f"?workflowRef={workflow_ref}"
+    return await _proxy_json(
+        connection_path,
+        "GET",
+        f"/api/plugin/projects/{project_id}{suffix}",
+        fetch=fetch,
+    )
+
+
+async def create_project_person(
+    connection_path: str,
+    project_id: str,
+    body: dict,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    payload = _pick(
+        body,
+        ("mode", "displayName", "talentRecordId", "talentEmail", "role"),
+    )
+    representative = body.get("representative") if isinstance(body, dict) else None
+    if representative not in (None, ""):
+        payload["representative"] = _pick(representative, ("role", "name", "email"))
+    if payload.get("talentRecordId"):
+        payload["talentRecordId"] = _opaque_id(
+            payload["talentRecordId"], "talentRecordId"
+        )
+    return await _proxy_json(
+        connection_path,
+        "POST",
+        f"/api/plugin/projects/{project_id}/people",
+        payload,
+        fetch,
+    )
+
+
+async def put_project_source_links(
+    connection_path: str,
+    project_id: str,
+    body: dict,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    # Re-normalize even when the local binding store already built this body.
+    # This is the final network boundary and must remain independently safe.
+    payload = normalize_source_links(
+        workflow_ref=body.get("workflowRef") if isinstance(body, dict) else None,
+        workflow_kind=body.get("workflowKind") if isinstance(body, dict) else None,
+        graph_hash=body.get("graphHash") if isinstance(body, dict) else None,
+        sources=body.get("sources") if isinstance(body, dict) else None,
+    )
+    supplied_manifest = str(body.get("manifestHash") or "")
+    if supplied_manifest and supplied_manifest != payload["manifestHash"]:
+        raise ValueError("manifestHash does not match the normalized rights manifest.")
+    return await _proxy_json(
+        connection_path,
+        "PUT",
+        f"/api/plugin/projects/{project_id}/source-links",
+        payload,
+        fetch,
+    )
+
+
+async def put_project_use(
+    connection_path: str,
+    project_id: str,
+    body: dict,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    if not isinstance(body, dict):
+        raise ValueError("Request body must be an object.")
+    _assert_no_graph_material(body)
+    people = body.get("people", [])
+    ai_actions = body.get("aiActions", [])
+    try:
+        workflow_ref = str(uuid.UUID(str(body.get("workflowRef") or "")))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("workflowRef must be a UUID.") from exc
+    manifest_hash = str(body.get("rightsManifestHash") or "").lower()
+    if not isinstance(people, list):
+        raise ValueError("people must be a list.")
+    if not isinstance(ai_actions, list):
+        raise ValueError("aiActions must be a list.")
+    if not SHA256_PATTERN.fullmatch(manifest_hash):
+        raise ValueError("rightsManifestHash must be a SHA-256 hex digest.")
+    scalar_fields = (
+        "usageType",
+        "deliverables",
+        "channels",
+        "platforms",
+        "territories",
+        "languages",
+        "paidMediaAllowed",
+        "organicMediaAllowed",
+        "usageWindowStart",
+        "usageWindowEnd",
+        "productCategory",
+        "finalCreativeApprovalRequired",
+        "compensationHandling",
+        "compensation",
+        "exclusivityHandling",
+        "exclusivity",
+        "revocationInstructions",
+        "takedownSla",
+        "modelDisableRequired",
+        "platformRemovalRequired",
+    )
+    payload = {
+        field: deepcopy(body[field]) for field in scalar_fields if field in body
+    }
+    safe_actions = []
+    for item in ai_actions:
+        if not isinstance(item, dict):
+            raise ValueError("Each aiActions entry must be an object.")
+        safe_item = {
+            "talentRecordId": _opaque_id(
+                item.get("talentRecordId"), "talentRecordId"
+            )
+        }
+        for field in ("modality", "action", "requiresFinalApproval", "notes"):
+            if field in item:
+                safe_item[field] = deepcopy(item[field])
+        safe_actions.append(safe_item)
+    safe_people = []
+    for person in people:
+        if not isinstance(person, dict):
+            raise ValueError("Each people entry must be an object.")
+        safe_person = {
+            "talentRecordId": _opaque_id(person.get("talentRecordId"), "talentRecordId"),
+        }
+        for field in (
+            "compensation",
+            "usageComfort",
+            "restrictions",
+            "representativeAuthority",
+        ):
+            if field in person:
+                safe_person[field] = deepcopy(person[field])
+        safe_people.append(safe_person)
+    payload.update(
+        {
+            "workflowRef": workflow_ref,
+            "rightsManifestHash": manifest_hash,
+            "aiActions": safe_actions,
+            "people": safe_people,
+        }
+    )
+    return await _proxy_json(
+        connection_path,
+        "PUT",
+        f"/api/plugin/projects/{project_id}/use",
+        payload,
+        fetch,
+    )
+
+
+async def create_confirmation_request(
+    connection_path: str,
+    project_id: str,
+    body: dict,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    payload = _pick(
+        body,
+        (
+            "clientRequestId",
+            "workflowRef",
+            "rightsManifestHash",
+            "talentRecordId",
+            "recipientEmail",
+            "recipientName",
+            "recipientRole",
+            "message",
+            "delivery",
+            "expiresInDays",
+        ),
+    )
+    try:
+        payload["clientRequestId"] = str(uuid.UUID(str(payload.get("clientRequestId") or "")))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("clientRequestId must be a UUID.") from exc
+    try:
+        payload["workflowRef"] = str(uuid.UUID(str(payload.get("workflowRef") or "")))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("workflowRef must be a UUID.") from exc
+    manifest_hash = str(payload.get("rightsManifestHash") or "").lower()
+    if not SHA256_PATTERN.fullmatch(manifest_hash):
+        raise ValueError("rightsManifestHash must be a SHA-256 hex digest.")
+    payload["rightsManifestHash"] = manifest_hash
+    if payload.get("talentRecordId"):
+        payload["talentRecordId"] = _opaque_id(
+            payload["talentRecordId"], "talentRecordId"
+        )
+    return await _proxy_json(
+        connection_path,
+        "POST",
+        f"/api/plugin/projects/{project_id}/confirmation-requests",
+        payload,
+        fetch,
+    )
+
+
 async def push_invite(
     connection_path: str, invite: dict, fetch: Fetch | None = None
 ) -> dict | None:
@@ -202,10 +527,6 @@ async def push_invite(
     for local_key, remote_key in (
         ("email", "email"),
         ("note", "note"),
-        ("source_key", "sourceKey"),
-        ("source_kind", "sourceKind"),
-        ("workflow_name", "workflowName"),
-        ("workflow_fingerprint", "workflowFingerprint"),
         ("client_request_id", "clientRequestId"),
     ):
         value = invite.get(local_key)

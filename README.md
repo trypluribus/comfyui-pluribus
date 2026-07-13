@@ -1,192 +1,335 @@
 # Pluribus for ComfyUI
 
-**Rights scan, roster, and terms workflow inside ComfyUI.** Pluribus scans the
-ComfyUI graph you already have — new project or existing — and surfaces
-person-bearing sources it can derive from graph provenance and the local roster:
-LoRAs, supported face adapters, reference images, and prompt terms. It is not
-face recognition and cannot guarantee it detects every person in rendered
-media. Connected users can send a terms invite; after the
-recipient accepts, the next connected rescan shows **Terms accepted** for the
-same workflow graph, source, and requested scope. That status is separate from
-the roster's clearance state and still requires a scope review. Eligible roster
-entries can be dropped into the canvas as nodes linked to the current roster
-record.
+Pluribus adds a people-and-permission workflow beside the ComfyUI graph you are
+already building. It finds supported person-bearing inputs locally, lets a
+connected user link each source to the real people in a Pluribus project,
+records the intended use, and creates a secure confirmation request for each
+person or representative.
 
-Free under GPL-3.0, including client work. Detection is derived from graph
-provenance and your roster — local and deterministic, with no face-recognition
-model. The scan itself stays on the ComfyUI server; pairing and connected
-invites transmit only the account and invite details described below.
+The normal v0.4 flow is:
+
+> **Find people → Link people → Set intended use → Request confirmation → Track the recipient response separately from internal review**
+
+A clean production install starts with no demo talent, no fixture permissions,
+and no pre-cleared people. Test fixtures still exist for automated development
+tests, but they are not loaded by the ComfyUI runtime.
+
+> **Release status:** this repository contains the v0.4.0 implementation. The
+> complete loop passed locally on 2026-07-13 from the launch branch against
+> localhost and disposable local Supabase. It has not been certified from a
+> public v0.4.0 tag against the deployed production API. See
+> [Your first project](docs/first-project.md)
+> for the user workflow and the exact verification boundary.
+
+## What the plugin does
+
+- Scans the current graph locally for supported reference images, identity
+  LoRAs, face-adapter paths, person-like prompts, and explicit Pluribus source
+  markers.
+- Creates or selects a canonical Pluribus project for a real client or company.
+- Associates the current ComfyUI workflow with that project as a character
+  sheet, storyboard, production graph, final graph, or other workflow.
+- Links one source to one or many people, and one person to many sources.
+- Records a structured, versioned use brief: deliverables, channels, platforms,
+  territory, term, paid and organic use, product category, AI actions,
+  restrictions, compensation handling, exclusivity handling, and final-creative
+  approval.
+- Sends a secure confirmation request by email or returns a link to copy.
+- Shows three separate status axes: the source/person link, the recipient
+  request and response, and internal review.
+
+The plugin does not generate a storyboard or character sheet. It groups the
+ComfyUI workflows that you create into one rights context so the people and use
+remain understandable across pre-production, production, and final review.
 
 ## Install
 
-Clone into your ComfyUI `custom_nodes` directory:
+Clone the plugin into the ComfyUI `custom_nodes` directory:
 
 ```bash
 cd /path/to/ComfyUI/custom_nodes
 git clone https://github.com/trypluribus/comfyui-pluribus
 ```
 
-Restart ComfyUI. The **Pluribus** tab appears in the sidebar rail (older
-frontends without the sidebar-tab API get a floating `Pluribus` launcher
-bottom-right instead). A Comfy Registry listing (`comfy node install
-comfyui-pluribus`) is on the way.
+Restart ComfyUI. The **Pluribus** tab appears in the sidebar rail. Older
+frontends without the sidebar-tab API get a floating **Pluribus** launcher in
+the lower-right corner.
 
-No account is needed to scan or save a local invite draft. The local ComfyUI
-path is verified; a cloud-hosted smoke test remains a launch gate. For read-only
-plugin directories (common on cloud mounts), local action and draft records
-fall back to a private per-user, per-install temp directory, or set
-`PLURIBUS_DATA_DIR` to choose where they live. Treat each data directory as
-single-process state; do not point two concurrent ComfyUI processes at the
-same `PLURIBUS_DATA_DIR`.
+Run ComfyUI on loopback or behind authentication you trust. The plugin's
+same-origin `/pluribus/*` routes can read and mutate the paired workspace using
+the device token; exposing an otherwise unauthenticated ComfyUI server to a LAN
+or the public internet also exposes that local proxy surface.
 
-## First scan
+For a pinned production install, use a release tag only after that tag is
+published and listed in the repository releases. A Comfy Registry listing is a
+separate distribution follow-up.
 
-Open any workflow and hit **Scan** (the panel also auto-scans the workflow
-loaded when it first opens; `Rescan` re-runs it). The scanner looks for:
+If the plugin directory is read-only, set `PLURIBUS_DATA_DIR` to a private,
+writable directory before starting ComfyUI. Otherwise, the plugin tries its
+private `data/` directory and then a per-user temporary location. Do not point
+two running ComfyUI processes at the same data directory.
 
-- `LoraLoader` / `LoraLoaderModelOnly` `lora_name` inputs
-- `LoadImage` references upstream of face/IPAdapter-style nodes
-- prompt-only person terms in `CLIPTextEncode`
-- standalone `PluribusSourceMarker` nodes
+## First use
 
-Every detected source gets a roster/scan state — Roster / scope on file, Needs
-review, Restricted, Synthetic unverified, or Unidentified — plus detection
-reticles drawn on the flagged nodes (clicking a card centers and selects its
-node). Accepted invite terms appear as an additional **Terms accepted · scope
-review still required** status; they do not silently change the underlying
-roster state.
+No account is required for the local scan. A connection is required only when
+you create/select canonical workspace records, link people remotely, save
+intended use, or request confirmation.
 
-Want something to poke at before using your own graph? Load
-`fixtures/pluribus_marker_workflow.json` to see several source-marker nodes at
-once.
+### 1. Find people locally
 
-## Roster & the Talent Record node
+Open a workflow and choose **Find people**. The panel also scans the workflow
+that is open when the panel first mounts; **Rescan** repeats the scan.
 
-The panel's **Roster** tab lists your local roster. Entries with scope on file
-are draggable — drop one onto the canvas (or double-click the row) and it lands
-as a `Pluribus · Talent Record` node linked to that roster identity. The node
-emits a placeholder reference IMAGE plus the talent name; real reference assets
-stay in Pluribus. On each scan, Pluribus looks up the current local roster
-record and lists supported downstream graph nodes (each chip click focuses that
-node). Review the recorded scope against the intended use.
+Detection currently understands:
 
-## Invite for terms
+- `LoraLoader` and `LoraLoaderModelOnly` identity-model inputs;
+- `LoadImage` references, including references upstream of supported
+  face-adapter and image-editing nodes;
+- person-like text in `CLIPTextEncode` when no stronger source is present;
+- standalone `Pluribus Source Marker` nodes.
 
-**Invite for terms** opens the invite dialog (recipient, email, personal note,
-Email invite / Copy link delivery). What sending does depends on whether you
-are connected to Pluribus:
+When adding a marker from the node library, choose the result once; a
+double-click can insert two nodes. Reference, LoRA, and unknown markers require
+a stable local source key. Prompt-only markers may omit the key when they have
+a display name or note. Incomplete markers are ignored and shown as a local
+warning, not counted as detected people.
 
-- **Not connected (default):** a local record is written to the data
-  directory as a **draft only**. No accept code or hosted URL is created, no
-  email is sent, nothing leaves your machine, and the person is not marked as
-  invited.
-- **Connected:** the invite goes through your Pluribus account — Pluribus
-  creates the canonical accept code and URL. For Email delivery it emails the
-  link to a required valid recipient address (reply-to is your account email);
-  it never silently converts a missing/invalid email into Copy link. For Copy
-  link it returns a shareable URL. If browser clipboard access is unavailable,
-  the dialog stays open with the full link for manual copying. Only a confirmed
-  server response marks the person invited in the current session.
-- **Transport failure or server 5xx:** the local record is **unconfirmed**, not
-  failed — the server may already have committed or emailed it. Retrying the
-  identical request is safe because the browser pre-mints one
-  `client_request_id` before the first attempt and carries it through retries;
-  request fields freeze before sending, and the local server reuses a matching
-  unconfirmed draft's ID even after the dialog is closed or reloaded. A later
-  sync can reconcile that draft with the server record.
-- **Email delivery ambiguity:** if Pluribus reports the provider attempt as
-  `ambiguous` or `in_flight`, the email may already have been sent. Retry or
-  sync the same invite and existing link; do not create a replacement invite.
-  `manual_reconciliation` disables automatic resend because an operator must
-  compare the invite with provider delivery records first.
-- **Expired connection or definite validation/server rejection:** the attempt
-  creates no hosted URL. Reconnect or correct the request before retrying.
+For source-key and display-name rows, current ComfyUI builds open a small
+**Value** editor; enter the value and choose **OK**. Save the workflow after its
+first Pluribus scan/project binding as well as after marker edits so the private
+workflow key is serialized with the graph.
 
-Every connected **Rescan** waits for server status sync before scanning. Sync
-also runs when the panel mounts, and a changed record triggers a fresh scan.
-**Terms accepted** appears and the invite action disappears only when workflow
-name, canonical API-graph fingerprint, source identity, and the exact scope
-statements stored on the accepted invite all match. The fingerprint is a SHA-256
-of canonical API graph JSON and is intentionally strict: **any execution-graph
-change invalidates the match**, even when the currently displayed terms would
-otherwise look unchanged. Loading a workflow clears stale scan results and
-reticles; action buttons also verify the live graph before proceeding.
-Acceptance is evidence that those invite terms were accepted, not a
-legal-clearance determination or an automatic approval for every use.
+The scanner follows graph provenance. It does not inspect pixels, recognize a
+face, or guarantee that every person in a rendered output was found. Review
+every result, especially custom-node graphs.
 
-Pre-fingerprint invite records from earlier plugin versions remain in the
-local audit history but conservatively do **not** display Terms accepted or
-remove the invite action. Migrating/reissuing those old records is a safe P2;
-the plugin will not guess that an incomplete record matches the current graph.
+### 2. Connect and choose a project
 
-**Details** expands recorded scope fields (allowed ✓ / prohibited ✕, conflicts,
-union/rep, provenance path) and holds the secondary actions: `Replace with
-roster source` (swaps a matching `image`/`lora_name` widget with a
-kind-compatible roster asset whose scope is on file), `Identify source`, and
-`Flag for review`.
+Choose **Connect**. The plugin shows a short code and opens
+[trypluribus.com/pair](https://trypluribus.com/pair). Sign in by email, enter
+the code, and approve the connection.
 
-## Connect to Pluribus (optional)
+Pairing creates a device-specific token; it does not create a project or upload
+the graph. A new self-serve user can explicitly create an individual production
+workspace. Organization access remains invitation-controlled, and the v0.4
+setup dialog does not yet include an organization-workspace picker.
 
-**Connect** in the panel header links this ComfyUI to your Pluribus account:
-the plugin shows a short pairing code, you approve it at
-[trypluribus.com/pair](https://trypluribus.com/pair) (email sign-in, no
-password), and the plugin receives its own API token — stored locally in the
-data directory. **Disconnect** clears it only after the server confirms
-revocation (or that it is already invalid); while offline, the token stays
-local so revocation can be retried. The local path is verified; cloud-hosted
-verification remains a launch gate. Scanning, the local roster, and local
-drafts work while disconnected; invite delivery, shareable links, and
-acceptance sync require a working connection. Starting pairing
-contacts the configured Pluribus server, and approving the code associates that
-plugin installation with your account.
+Create a project with a project name, real client/company, optional agency, and
+short production context. Then classify the current graph as one of:
 
-Self-hosting or testing against a staging server? Point the plugin at it with
-`PLURIBUS_SERVER_URL` (defaults to `https://trypluribus.com`).
+- Character sheet
+- Storyboard
+- Production
+- Final
+- Other
 
-## Scope — what this does NOT do
+The plugin keeps a private stable workflow identifier so the same local graph
+can be found after a restart without sending its filename or raw JSON.
 
-- Identity is inferred from graph provenance and the roster, **not** a vision
-  model; a scan is a consent record aid, not a legal clearance determination.
-- Synthetic outputs say "no known real-person source detected in graph"; they
-  never claim "no NIL required."
-- Restricted means a restriction is on file — review it against the campaign
-  before use.
-- Roster, action, invite, and draft data are local JSON while disconnected.
-  Pairing exchanges the connection request and token with the configured
-  Pluribus server. A connected invite sends the recipient name/email, note,
-  proposed scope, source kind/key, workflow name, and workflow fingerprint so
-  the hosted record can be delivered and matched during acceptance sync. It
-  does not upload raw graph JSON, prompts, model files, or image files.
+### 3. Link every source to people
 
-## Try it without ComfyUI
+Open a detected source and choose **Link people**. You can select an existing
+person in the project or add a new person with:
 
-```bash
-python -m pluribus.scan_cli
-```
+- name;
+- project role;
+- optional direct email;
+- optional representative role, name, and email.
 
-Scans the bundled "Morning People" demo spot
-(`fixtures/morning_people_spot_workflow_api.json`) from the terminal.
+You can link a group image to multiple people. You can also link multiple
+reference images, LoRAs, or prompt sources to the same person. If the detector
+found something that is not a real person, mark it **Not a person**. If the
+classification is unresolved, keep it **Review required**.
+
+Adding or linking a person does not assert permission, representative
+authority, or legal clearance.
+
+### 4. Set intended use
+
+Open **Intended use** and review the complete request before saving it. At a
+minimum, record:
+
+- the proposed use and deliverables;
+- channels and any named platforms;
+- organic and paid-media treatment;
+- territory and usage dates;
+- product category and languages;
+- whether final-creative approval is required;
+- whether compensation and exclusivity are included, handled separately, or
+  outside this request;
+- each person's restrictions, compensation, usage comfort, and representative
+  authority notes;
+- the revocation/takedown instructions, expected response time, and any
+  model-disablement or platform-removal requirement.
+
+Per-person fields are loaded from the canonical project record. They remain
+separate when two people have different terms; saving one project brief does
+not flatten those records into a shared restriction or compensation value.
+Paid media or external activation requires an actionable revocation path
+before the plugin will save the brief.
+
+Supported downstream ComfyUI operation classes are translated into structured
+AI-action rows, such as face editing, reference-image processing, identity
+model generation, or image-to-video rendering. This mapping is an aid, not a
+substitute for human review. Unsupported custom nodes may require a manual
+follow-up outside the plugin.
+
+Saving the form creates or updates the canonical versioned permission scope in
+Pluribus.
+
+### 5. Request confirmation
+
+Open **People**, choose a linked person, and select **Request confirmation**.
+Review the exact project and scope preview. It includes category, languages,
+the selected person's terms and caveats, inferred AI actions, and the
+revocation/takedown controls. Then provide:
+
+- recipient name and email;
+- expected recipient role;
+- optional message;
+- email delivery or copy-link delivery.
+
+The recipient confirms their own role and authority on the secure review page.
+They can confirm, confirm with a caveat, request changes, decline, state that
+they lack authority, or exclude the person from the project.
+
+Each create attempt uses a client-generated request ID. If delivery is pending
+or ambiguous, keep the same request and reconcile it; do not create a second
+request merely because an email response was lost. Email requests are limited
+to 30 per workspace/user per hour.
+
+**Retry same request** keeps the ID while the request dialog stays open. A
+reload currently loses that dialog-held ID and cannot safely re-reveal an
+already-created link-only URL; refresh canonical project state and reconcile
+instead of blindly creating another request.
+
+### 6. Read the statuses literally
+
+The panel keeps three concepts separate:
+
+- **Person/source:** whether the detected source is linked, not a person, or
+  still needs review.
+- **Request:** ready, pending, confirmed, confirmed with caveat, changes
+  requested, declined, no authority, excluded, expired, or cancelled.
+- **Internal review:** the production team's separate decision state.
+
+A recipient response never becomes **Cleared**. In v0.4, the plugin reads the
+recipient state but does not provide an internal approval action. The internal
+axis separately reflects the current-scope canonical state: **Not reviewed**,
+**Pending**, **Approved**, **Changes requested**, **Blocked**, or **Not
+required**. Only an internal workspace decision can change that axis.
+
+## What changes invalidate a confirmation context
+
+Pluribus tracks two hashes for different purposes:
+
+- The **rights manifest hash** covers the stable workflow ID and workflow kind,
+  opaque source IDs, source classifications, linked person IDs, and normalized
+  operation classes. A change to any of those rights-relevant facts creates a
+  new material context that must be reviewed.
+- The **graph hash** is audit and sync metadata for the whole execution graph.
+  Moving a node, changing a sampler, or making another unrelated graph edit may
+  change this hash, but does not by itself invalidate the rights manifest.
+
+Human-readable source labels are not part of the rights hash. Raw filenames,
+paths, prompts, node IDs, and graph JSON never enter the rights manifest.
+
+## Privacy and network boundary
+
+The local scan does not upload:
+
+- raw workflow JSON;
+- prompts;
+- node IDs;
+- local filenames or source paths;
+- reference images;
+- LoRA/model files;
+- character sheets, storyboards, renders, or videos.
+
+The connected flow sends only the information required for the canonical
+workspace record:
+
+- account, workspace, and project metadata entered by the user;
+- person names, project roles, and contact/representative fields entered by the
+  user;
+- random workflow and source references, plus a SHA-256 fingerprint of the
+  canonical API graph used only for audit/sync comparison;
+- source kind, classification, linked person IDs, and normalized operation
+  class names;
+- the structured intended-use form;
+- confirmation recipient, message, delivery selection, and stable request ID.
+
+The pairing label is the generic `ComfyUI plugin`; the local hostname is not
+sent. The frontend uses the system font stack and does not request Google Fonts.
+The plugin token and private workflow/source mappings are stored in the plugin
+data directory. Treat that directory as sensitive local application state.
+
+**Disconnect** removes the local token only after server-side revocation is
+confirmed, or after a `401` proves the token is already unusable. If Pluribus is
+offline, the token stays local so revocation can be retried.
+
+## Limitations
+
+- This is graph-provenance detection, not face recognition or biometric
+  identification.
+- A synthetic-only result means no supported real-person source was found in
+  the graph. It is not a legal conclusion.
+- Pluribus does not upload, host, or inspect creative media through this plugin.
+- The plugin does not create storyboards, character sheets, shots, or final
+  renders.
+- v0.4 does not provide contracts, e-signature, payment, union clearance,
+  marketplace matching, or legal advice.
+- Compensation and exclusivity can be included in the confirmation or
+  explicitly marked as handled elsewhere; the plugin does not execute either.
+- The plugin does not currently expose the canonical internal-review action.
+- The setup dialog creates/selects a personal workspace; it does not yet list
+  organization workspaces to which the user has been invited.
+- Detection and AI-action mappings cover named node classes. New or custom
+  nodes require explicit support or manual review.
+- The panel has no manual normalized AI-action override yet; marker-only graphs
+  do not verify downstream action inference or a render-ready production path.
+- Link-only retry identity does not yet survive a request-dialog reload.
+- Production v0.4 still requires a public-tag, deployed-API, new-user
+  end-to-end rehearsal before launch certification.
+
+## Compatibility with v0.3
+
+The old local roster, invite, replacement, packet, and fixture-backed scanner
+modules remain in the repository for compatibility tests and historical local
+records. The production v0.4 panel does not load the seed roster and does not
+use **Invite for terms** as its canonical path.
+
+Existing plugin tokens carrying the legacy `plugin` scope continue to work as
+a compatibility wildcard. Newly issued tokens use the narrower
+`workspace:read`, `workspace:write`, and `confirmations:send` scopes.
+
+Old local invite JSON is not silently promoted into canonical project people,
+permission scopes, or confirmations. Keep it as historical local evidence and
+create a reviewed v0.4 project record when continuing real work.
 
 ## Development
 
-For hacking on the plugin itself, a symlink beats cloning:
+For plugin development, a symlink avoids repeated clones:
 
 ```bash
 ln -s "$(pwd)" /path/to/ComfyUI/custom_nodes/comfyui-pluribus
 ```
 
-Frontend is vanilla ES modules under `web/`, no build step. Tests:
+The frontend is vanilla ES modules under `web/` and has no build step.
 
 ```bash
 python -m pytest -v
+node --test web/tests/contracts.test.mjs
 ```
+
+The hosted Pluribus server/API and its database migrations are maintained and
+deployed separately from this public plugin package. No server credential,
+database migration, or private application source is included here.
 
 ## License
 
-GPL-3.0-only — see [LICENSE](LICENSE). Server-side Pluribus services, roster
-APIs, hosted terms workflows, and Pluribus trademarks are not licensed by
-this plugin license (see [NOTICE](NOTICE)).
+GPL-3.0-only — see [LICENSE](LICENSE). Server-side Pluribus services, canonical
+workspace APIs, hosted confirmation workflows, and Pluribus trademarks are not
+licensed by the plugin license; see [NOTICE](NOTICE).
 
-Pluribus is the talent layer for AI media — roster, rights, and consent where
-the work is actually made. More at
-[trypluribus.com](https://trypluribus.com/?src=comfyui).
+More at [trypluribus.com](https://trypluribus.com/?src=comfyui).
