@@ -4,13 +4,26 @@
 
 import { app } from "../../scripts/app.js";
 import { STATE_HEX } from "./components.js";
+import { workflowFingerprint } from "./fingerprint.js";
 
 const decorated = new Set();
 
+function currentGraph() {
+  try {
+    return app.graph || null;
+  } catch {
+    // Newer ComfyUI builds expose app.graph through a getter that throws until
+    // graph initialization finishes. Startup hooks must treat that as not
+    // ready, not emit a console error.
+    return null;
+  }
+}
+
 function liveNode(person) {
   const id = person.source_node_id || person.output_node_id;
-  if (!id || !app.graph) return null;
-  return app.graph.getNodeById(Number(id)) || app.graph.getNodeById(id) || null;
+  const graph = currentGraph();
+  if (!id || !graph) return null;
+  return graph.getNodeById(Number(id)) || graph.getNodeById(id) || null;
 }
 
 function drawReticle(ctx, node, color) {
@@ -55,7 +68,7 @@ export function applyReticles(persons) {
     };
     decorated.add(node);
   }
-  app.graph?.setDirtyCanvas(true, true);
+  currentGraph()?.setDirtyCanvas(true, true);
 }
 
 export function clearReticles() {
@@ -64,7 +77,7 @@ export function clearReticles() {
     delete node.__plbPrevOnDrawForeground;
   }
   decorated.clear();
-  app.graph?.setDirtyCanvas(true, true);
+  currentGraph()?.setDirtyCanvas(true, true);
 }
 
 export function focusPerson(person) {
@@ -72,8 +85,9 @@ export function focusPerson(person) {
 }
 
 export function focusNodeById(id) {
-  if (!id || !app.graph) return false;
-  const node = app.graph.getNodeById(Number(id)) || app.graph.getNodeById(id);
+  const graph = currentGraph();
+  if (!id || !graph) return false;
+  const node = graph.getNodeById(Number(id)) || graph.getNodeById(id);
   if (!node) return false;
   const canvas = app.canvas;
   if (!canvas) return false;
@@ -87,10 +101,11 @@ export function focusNodeById(id) {
   return true;
 }
 
-// Insert a Cleared Talent node at drop coordinates (client-space event).
+// Insert a Talent Record node at drop coordinates (client-space event).
 export function addTalentNodeAt(talentName, clientEvent) {
   const LG = window.LiteGraph;
-  if (!LG || !app.graph) return false;
+  const graph = currentGraph();
+  if (!LG || !graph) return false;
   const node = LG.createNode("PluribusClearedTalent");
   if (!node) return false;
   const canvas = app.canvas;
@@ -100,21 +115,21 @@ export function addTalentNodeAt(talentName, clientEvent) {
     pos = [offset[0] ?? offset.x ?? 80, offset[1] ?? offset.y ?? 80];
   }
   node.pos = pos;
-  app.graph.add(node);
+  graph.add(node);
   const widget = (node.widgets || []).find((w) => w.name === "talent");
   if (widget) {
     widget.value = talentName;
     widget.callback?.(talentName);
   }
   canvas?.selectNodes?.([node]);
-  app.graph.setDirtyCanvas(true, true);
+  graph.setDirtyCanvas(true, true);
   return true;
 }
 
 // Replace a lora/image widget value on the live graph after a server-side
 // replacement, so the open workflow matches what the backend returned.
 export function applyReplacementToGraph(sourceKey, target) {
-  const graph = app.graph;
+  const graph = currentGraph();
   const nodes = graph?._nodes;
   if (!nodes) return false;
   let changed = false;
@@ -143,5 +158,18 @@ export function workflowName() {
     app.extensionManager?.workflow?.activeWorkflow?.filename ||
     app.workflowManager?.activeWorkflow?.name ||
     "current graph"
+  );
+}
+
+export async function personMatchesCurrentWorkflow(person) {
+  if (
+    !person?.workflow_fingerprint ||
+    !person?.workflow_name ||
+    person.workflow_name !== workflowName()
+  ) {
+    return false;
+  }
+  return (
+    (await workflowFingerprint(await snapshotWorkflow())) === person.workflow_fingerprint
   );
 }

@@ -1,6 +1,6 @@
-// CS3 — docked roster. Cleared talent are draggable onto the graph canvas,
-// where they land as a Pluribus · Cleared Talent node. Non-cleared people
-// are listed (dimmed) so the roster reads honestly.
+// CS3 — docked roster. Eligible entries are draggable onto the graph canvas,
+// where they land as a Pluribus · Talent Record node. Entries that still need
+// scope or review are listed dimmed.
 
 import { app } from "../../scripts/app.js";
 import { getRoster } from "./api.js";
@@ -13,8 +13,8 @@ let cachedRoster = null;
 let dropWired = false;
 
 const CONSENT_TAG = {
-  cleared: { label: "AI-consent ready", cls: "cleared" },
-  pending: { label: "Not cleared yet", cls: "needs_review" },
+  cleared: { label: "Scope on file · review use", cls: "cleared" },
+  pending: { label: "Scope or review needed", cls: "needs_review" },
   restricted: { label: "Restricted", cls: "restricted" },
 };
 
@@ -63,13 +63,19 @@ function rosterList(talent) {
     el(
       "div",
       { class: "plb-roster-hint" },
-      metaLabel(`${cleared.length} cleared · drag a face into the graph`, true)
+      metaLabel(`${cleared.length} with scope on file · drag a roster entry into the graph`, true)
     )
   );
   const list = el("div", { class: "plb-list", style: "padding-top: 4px" });
   cleared.forEach((t) => list.append(rosterRow(t, true)));
   if (rest.length) {
-    list.append(el("div", { class: "plb-ops-label", style: "margin: 8px 2px 0", text: "Not yet cleared" }));
+    list.append(
+      el("div", {
+        class: "plb-ops-label",
+        style: "margin: 8px 2px 0",
+        text: "Scope or review needed",
+      })
+    );
     rest.forEach((t) => list.append(rosterRow(t, false)));
   }
   wrap.append(list);
@@ -102,7 +108,7 @@ function rosterRow(talent, draggable) {
 
   if (draggable) {
     row.draggable = true;
-    row.title = "Drag onto the canvas to add as a Cleared Talent node";
+    row.title = "Drag onto the canvas to add as a Talent Record node";
     row.addEventListener("dragstart", (event) => {
       event.dataTransfer.setData(DRAG_MIME, talent.name);
       event.dataTransfer.effectAllowed = "copy";
@@ -111,11 +117,11 @@ function rosterRow(talent, draggable) {
     row.addEventListener("dragend", () => row.classList.remove("dragging"));
     row.addEventListener("dblclick", () => {
       if (addTalentNodeAt(talent.name, null)) {
-        toast(`${talent.name} added to the graph as a Cleared Talent node.`);
+        toast(`${talent.name} added to the graph as a Talent Record node.`);
       }
     });
   } else {
-    row.title = "Not cleared — invite them from a rights scan first";
+    row.title = "Scope or review needed — invite them from a rights scan first";
   }
   return row;
 }
@@ -138,7 +144,7 @@ function wireCanvasDrop() {
     event.preventDefault();
     event.stopPropagation();
     if (addTalentNodeAt(name, event)) {
-      toast(`${name} added — consent scope travels with the likeness.`);
+      toast(`${name} added — rescan to review the roster record and downstream nodes.`);
     } else {
       toast("Could not add the talent node to the graph.");
     }

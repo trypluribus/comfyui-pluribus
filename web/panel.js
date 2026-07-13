@@ -1,7 +1,7 @@
 // CS4 — the Rights scan panel. Renders into whatever container it's given
 // (native sidebar tab or the floating fallback) from store state.
 
-import { recordAction, replaceSource, scanWorkflow } from "./api.js";
+import { recordAction, replaceSource, scanWorkflow, syncInvites } from "./api.js";
 import {
   avatar,
   button,
@@ -18,12 +18,22 @@ import {
   applyReticles,
   focusNodeById,
   focusPerson,
+  personMatchesCurrentWorkflow,
   snapshotWorkflow,
   workflowName,
 } from "./canvas.js";
+import { workflowFingerprint } from "./fingerprint.js";
+import { openConnectDialog, refreshConnection } from "./connect.js";
 import { openInviteDialog } from "./invite.js";
 import { renderRosterTab } from "./roster.js";
-import { getState, invitablePersons, needsActionCount, setState, subscribe } from "./store.js";
+import {
+  getState,
+  invitablePersons,
+  needsActionCount,
+  setState,
+  subscribe,
+  wasInvited,
+} from "./store.js";
 
 const expanded = new Set(); // person identity → details open, survives re-renders
 let root = null;
@@ -35,14 +45,32 @@ export function mountPanel(container) {
   subscribe(render);
   render(getState());
   if (!getState().scan && !getState().scanning) scan();
+  void refreshConnection({
+    onInviteSync: async () => {
+      await scan();
+    },
+  });
   return root;
 }
 
-export async function scan() {
+export async function scan({ syncFirst = false } = {}) {
+  const scanEpoch = getState().scanEpoch;
   setState({ scanning: true, error: null });
   try {
+    if (syncFirst) {
+      // Manual rescans always wait for the local sync route. Disconnected
+      // calls return immediately; connected calls fetch server status first.
+      try {
+        await syncInvites();
+      } catch (error) {
+        console.warn("[Pluribus] invite sync failed before rescan", error);
+      }
+    }
     const workflow = await snapshotWorkflow();
-    const scanResult = await scanWorkflow(workflow);
+    const name = workflowName();
+    const fingerprint = await workflowFingerprint(workflow);
+    const scanResult = await scanWorkflow(workflow, name, fingerprint);
+    if (getState().scanEpoch !== scanEpoch) return;
     setState({
       scan: scanResult,
       workflow,
@@ -51,6 +79,7 @@ export async function scan() {
     });
     applyReticles(scanResult.persons);
   } catch (error) {
+    if (getState().scanEpoch !== scanEpoch) return;
     console.error("[Pluribus] scan failed", error);
     setState({ scanning: false, error });
   }
@@ -98,12 +127,42 @@ function header(state) {
       el("span", { class: "plb-wordmark", text: "Pluribus" }),
       el("span", { class: "plb-header-sub", text: "Talent layer" })
     ),
-    el(
+    connectionChip(state)
+  );
+}
+
+function connectionChip(state) {
+  if (state.scanning) {
+    return el(
       "span",
       { class: "plb-linked" },
       el("span", { class: "plb-dot" }),
-      el("span", { text: state.scanning ? "scanning" : "linked" })
-    )
+      el("span", { text: "scanning" })
+    );
+  }
+  const connection = state.connection;
+  if (connection?.state === "connected") {
+    return el(
+      "button",
+      {
+        class: "plb-linked plb-linked--btn",
+        type: "button",
+        title: "Connected to Pluribus — click to manage",
+        onclick: () => openConnectDialog(connection),
+      },
+      el("span", { class: "plb-dot" }),
+      el("span", { class: "plb-linked-email", text: connection.account_email || "connected" })
+    );
+  }
+  return el(
+    "button",
+    {
+      class: "plb-connect-cta",
+      type: "button",
+      title: "Link this ComfyUI to your Pluribus account",
+      text: connection?.state === "pairing" ? "Pairing…" : "Connect",
+      onclick: () => openConnectDialog(connection),
+    }
   );
 }
 
@@ -133,9 +192,22 @@ function body(state) {
         el("div", {
           text: state.scanning
             ? "Scanning the current workflow…"
-            : "Scan this workflow to find every real or synthetic person and how their performance is altered.",
+            : "Scan graph provenance and roster records for person-bearing sources and the operations that alter them.",
         }),
         state.scanning ? null : button("Scan workflow", "primary", scan)
+      )
+    );
+  }
+  if (state.scan.workflow_name !== workflowName()) {
+    return el(
+      "div",
+      { class: "plb-list" },
+      el(
+        "div",
+        { class: "plb-empty" },
+        pluribusMark(20),
+        el("div", { text: "The open workflow changed. Rescan before using these results." }),
+        button("Rescan", "primary", () => scan({ syncFirst: true }))
       )
     );
   }
@@ -164,7 +236,7 @@ function summary(state) {
     el(
       "div",
       { class: "plb-summary-title" },
-      metaLabel(`Scan of ${workflowName()}`, true),
+      metaLabel(`Scan of ${state.scan.workflow_name || "current graph"}`, true),
       el("span", { class: "plb-meta plb-meta--dim", text: stamp(state.scannedAt) })
     ),
     tiles
@@ -178,8 +250,8 @@ function summary(state) {
         el("span", { class: "plb-warnmark", text: "⚠" }),
         el("span", {
           text:
-            `${needAction} ${needAction === 1 ? "source needs" : "sources need"} action before this ` +
-            `workflow's output is clear to use. Invite the real people to accept NIL & performance terms.`,
+            `${needAction} ${needAction === 1 ? "source still needs" : "sources still need"} review. ` +
+            `Check accepted terms, restrictions, and unidentified sources before relying on this scan.`,
         })
       )
     );
@@ -205,8 +277,8 @@ function cardList(state) {
         pluribusMark(20),
         el("div", {
           text:
-            "No person-bearing LoRA, reference image, face-swap source, or person prompt " +
-            "found in the current graph.",
+            "No supported person-bearing source was derived from the current graph. " +
+            "This scan does not inspect rendered pixels.",
         })
       )
     );
@@ -248,15 +320,16 @@ function card(person, state) {
 
   const actions = el("div", { class: "plb-actions" });
   if (person.available_actions.includes("invite")) {
-    const alreadyInvited = state.invited.has(person.source_key || "");
-    const invite = button(alreadyInvited ? "Invite sent" : "Invite to clear", "primary", () =>
+    const alreadyInvited = wasInvited(person);
+    const invite = button(alreadyInvited ? "Invite sent" : "Invite for terms", "primary", () =>
       openInviteDialog([person])
     );
     invite.disabled = alreadyInvited;
     actions.append(invite);
   }
   const detailsBtn = button(expanded.has(key) ? "Hide details" : "Details", "secondary", () => {
-    expanded.has(key) ? expanded.delete(key) : expanded.add(key);
+    if (expanded.has(key)) expanded.delete(key);
+    else expanded.add(key);
     render(getState());
   });
   actions.append(detailsBtn);
@@ -281,6 +354,9 @@ function srcLine(person) {
 
 function details(person, state) {
   const rows = [
+    ...(person.terms_status === "accepted"
+      ? [["Terms", person.terms_accepted_at ? `Accepted ${person.terms_accepted_at}` : "Accepted"]]
+      : []),
     ["Scope", person.scope || "Not on file"],
     ["Union", person.union_status || "Not on file"],
     ["Rep", person.rep || "Not on file"],
@@ -320,7 +396,7 @@ function details(person, state) {
 
   const extra = el("div", { class: "plb-actions" });
   if (person.available_actions.includes("replace") && person.replacement_asset_key) {
-    extra.append(button("Replace with cleared", "secondary", () => replace(person, state)));
+    extra.append(button("Replace with roster source", "secondary", () => replace(person, state)));
   }
   if (person.available_actions.includes("identify")) {
     extra.append(button("Identify source", "secondary", () => act(person, "identify")));
@@ -333,6 +409,7 @@ function details(person, state) {
 }
 
 async function act(person, kind) {
+  if (!(await ensureCurrentPerson(person))) return;
   try {
     const data = await recordAction({
       kind,
@@ -347,6 +424,7 @@ async function act(person, kind) {
 }
 
 async function replace(person, state) {
+  if (!(await ensureCurrentPerson(person))) return;
   const target = person.replacement_asset_key;
   try {
     await replaceSource(state.workflow, person.source_key, target);
@@ -363,9 +441,16 @@ async function replace(person, state) {
 }
 
 function footer(state) {
+  if (state.scan && state.scan.workflow_name !== workflowName()) {
+    return el(
+      "div",
+      { class: "plb-footer" },
+      button("Rescan", "primary", () => scan({ syncFirst: true }))
+    );
+  }
   const invitable = invitablePersons();
   const inviteAll = button(
-    invitable.length ? `Invite all uncleared (${invitable.length})` : "Invite all uncleared",
+    invitable.length ? `Invite all for terms (${invitable.length})` : "Invite all for terms",
     "primary",
     () => openInviteDialog(invitable)
   );
@@ -374,8 +459,20 @@ function footer(state) {
     "div",
     { class: "plb-footer" },
     inviteAll,
-    button(state.scanning ? "Scanning…" : "Rescan", "secondary", scan)
+    button(state.scanning ? "Scanning…" : "Rescan", "secondary", () =>
+      scan({ syncFirst: true })
+    )
   );
+}
+
+async function ensureCurrentPerson(person) {
+  try {
+    if (await personMatchesCurrentWorkflow(person)) return true;
+  } catch (error) {
+    console.warn("[Pluribus] could not verify workflow context", error);
+  }
+  toast("The workflow changed after this scan. Rescan before taking action.");
+  return false;
 }
 
 function stamp(date) {

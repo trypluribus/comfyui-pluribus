@@ -11,7 +11,7 @@ from .packet import build_packet, render_markdown
 from .roster import Roster
 
 BADGE = {
-    "cleared": "CLEARED",
+    "cleared": "ROSTER / SCOPE ON FILE",
     "needs_review": "NEEDS REVIEW",
     "restricted": "RESTRICTED",
     "synthetic_unverified": "SYNTHETIC (UNVERIFIED)",
@@ -30,7 +30,7 @@ def run(workflow_path: str, roster_path: str, out_dir: str) -> dict[str, int]:
     engine = ClearanceEngine(Roster.from_json(roster_path))
     result = engine.scan(adapter)
 
-    print("\nPluribus Clearance Layer")
+    print("\nPluribus Rights Scan")
     print("=" * 48)
     for person in result.persons:
         who = person.name or "Unidentified person"

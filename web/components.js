@@ -32,10 +32,13 @@ export function pluribusMark(size = 14) {
 }
 
 export const STATE_META = {
-  cleared: { tag: "Cleared", status: "In roster · cleared" },
-  needs_review: { tag: "Real person", status: "Known person · not cleared" },
+  cleared: { tag: "Roster", status: "In roster · scope on file" },
+  needs_review: { tag: "Review", status: "Known source · terms needed" },
   restricted: { tag: "Restricted", status: "Restriction on file" },
-  synthetic_unverified: { tag: "Synthetic", status: "Synthetic · no consent required" },
+  synthetic_unverified: {
+    tag: "Synthetic",
+    status: "No known real-person source detected in graph",
+  },
   unidentified: { tag: "Unknown", status: "Unknown source · unmanaged" },
 };
 
@@ -124,7 +127,7 @@ export function opsChips(person, onFocusNode) {
     return el(
       "div",
       {},
-      el("div", { class: "plb-ops-label", text: "Performance altered by" }),
+      el("div", { class: "plb-ops-label", text: "Downstream graph nodes" }),
       el(
         "div",
         { class: "plb-ops" },
@@ -151,12 +154,12 @@ export function opsChips(person, onFocusNode) {
   return el(
     "div",
     {},
-    el("div", { class: "plb-ops-label", text: "Performance altered by" }),
+    el("div", { class: "plb-ops-label", text: "Downstream graph nodes" }),
     el("div", { class: "plb-ops" }, labels.map((label) => el("span", { class: "plb-chip", text: label })))
   );
 }
 
-// What the invite will ask the person to clear, derived from graph operations.
+// Proposed invite terms derived from supported graph operations.
 const CLEAR_STATEMENTS = {
   "Face swap": "Use of their face / likeness in this workflow",
   "Face adapter": "Conditioning AI generation on their face",
@@ -166,6 +169,9 @@ const CLEAR_STATEMENTS = {
 };
 
 export function clearStatements(person) {
+  if (Array.isArray(person.scope_statements) && person.scope_statements.length) {
+    return [...person.scope_statements];
+  }
   const statements = [];
   for (const label of opLabels(person.provenance)) {
     const statement = CLEAR_STATEMENTS[label];
@@ -191,10 +197,22 @@ export function toast(message) {
 
 export function statusLine(person) {
   const meta = STATE_META[person.state] || { status: person.state };
-  return el(
+  const rosterStatus = el(
     "div",
     { class: "plb-status-line" },
     el("span", { class: "plb-dot" }),
     el("span", { text: meta.status })
+  );
+  if (person.terms_status !== "accepted") return rosterStatus;
+  return el(
+    "div",
+    { class: "plb-status-stack" },
+    rosterStatus,
+    el(
+      "div",
+      { class: "plb-status-line plb-terms-accepted" },
+      el("span", { class: "plb-dot" }),
+      el("span", { text: "Terms accepted · scope review still required" })
+    )
   );
 }

@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-pluribus"
 version = "0.3.0"
-description = "Rights scan, roster, and clearance inside your ComfyUI workflow — the Pluribus talent layer."
+description = "Rights scan, roster, and proposed-terms workflow inside ComfyUI — the Pluribus talent layer."
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 
@@ -14,7 +14,7 @@ Issues = "https://github.com/trypluribus/comfyui-pluribus/issues"
 # created at registry.comfy.org before `comfy node publish`.
 [tool.comfy]
 PublisherId = "pluribus"
-DisplayName = "Pluribus — Rights Scan & Cleared Talent"
+DisplayName = "Pluribus — Rights Scan & Talent Records"
 Icon = "https://trypluribus.com/brand/app-icons/icon-amber-bg-512.png"
 
 [tool.pytest.ini_options]

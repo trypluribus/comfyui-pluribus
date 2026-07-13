@@ -5,6 +5,8 @@
 import { app } from "../../scripts/app.js";
 import { mountPanel } from "./panel.js";
 import { el } from "./components.js";
+import { clearReticles } from "./canvas.js";
+import { invalidateScan } from "./store.js";
 
 const FONTS_HREF =
   "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&display=swap";
@@ -18,6 +20,13 @@ const NODE_COLORS = {
 
 app.registerExtension({
   name: "pluribus.rightsScan",
+
+  async afterConfigureGraph() {
+    // ComfyUI has loaded/configured a graph. Results from the previous graph
+    // must never remain actionable while a new graph is on canvas.
+    clearReticles();
+    invalidateScan();
+  },
 
   async setup() {
     addStyles();
@@ -77,8 +86,8 @@ function whenReady(callback) {
   else window.addEventListener("DOMContentLoaded", callback, { once: true });
 }
 
-// ── Cleared Talent node — CS6 "standard" density, drawn with canvas
-//    primitives: striped likeness thumb, name, live "twin tracked" footer. ──
+// ── Talent Record node — CS6 "standard" density, drawn with canvas
+//    primitives: striped likeness thumb, name, roster-review footer. ──
 const AMBER = "#c97a2b";
 const TALENT_MIN_SIZE = [232, 182];
 
@@ -154,7 +163,7 @@ function decorateTalentNode(nodeType) {
     ctx.textBaseline = "middle";
     ctx.fillText(name, x + 6, y + thumbH - 9, width - 12);
 
-    // footer — twin tracked · consent live
+    // footer — roster-linked record; scope still needs use-specific review
     const fy = y + thumbH + footerH / 2 + 2;
     ctx.strokeStyle = "rgba(255,255,255,0.08)";
     ctx.lineWidth = 1;
@@ -167,7 +176,7 @@ function decorateTalentNode(nodeType) {
     ctx.arc(x + 3, fy, 2.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.font = "600 8px 'Inter', sans-serif";
-    ctx.fillText("TWIN TRACKED · CONSENT LIVE", x + 10, fy, width - 12);
+    ctx.fillText("ROSTER LINKED · REVIEW SCOPE", x + 10, fy, width - 12);
     ctx.restore();
   };
 }

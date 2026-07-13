@@ -6,8 +6,10 @@ const state = {
   workflow: null, // API-format snapshot the scan ran against
   scanning: false,
   error: null,
-  invited: new Set(), // source_keys invited this session
+  invited: new Set(), // workflow/source/scope contexts invited this session
   scannedAt: null,
+  scanEpoch: 0, // incremented when ComfyUI configures a different graph
+  connection: null, // { state, account_email?, ... } from /pluribus/connect
 };
 
 const listeners = new Set();
@@ -26,16 +28,41 @@ export function setState(patch) {
   for (const listener of listeners) listener(state);
 }
 
-export function markInvited(sourceKey) {
-  state.invited.add(sourceKey || "");
+export function invalidateScan() {
+  setState({
+    scan: null,
+    workflow: null,
+    scanning: false,
+    error: null,
+    scannedAt: null,
+    scanEpoch: state.scanEpoch + 1,
+  });
+}
+
+function inviteKey(person) {
+  return JSON.stringify([
+    person.workflow_name || "",
+    person.workflow_fingerprint || "",
+    person.source_kind || "",
+    person.source_key || "",
+    person.scope_statements || [],
+  ]);
+}
+
+export function markInvited(person) {
+  state.invited.add(inviteKey(person));
   setState({});
+}
+
+export function wasInvited(person) {
+  return state.invited.has(inviteKey(person));
 }
 
 // Persons that can be invited and have not been this session.
 export function invitablePersons() {
   const persons = state.scan?.persons || [];
   return persons.filter(
-    (p) => p.available_actions.includes("invite") && !state.invited.has(p.source_key || "")
+    (person) => person.available_actions.includes("invite") && !wasInvited(person)
   );
 }
 

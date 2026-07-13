@@ -384,7 +384,7 @@ class ClearanceEngine:
                 source_kind=kind,
                 source_key=key,
                 state=ClearanceState.CLEARED,
-                note=f"Cleared for scope: {asset.scope}",
+                note=f"Scope on file: {asset.scope}. Review against the intended use.",
                 **shared,
             )
 
@@ -393,7 +393,7 @@ class ClearanceEngine:
             source_kind=kind,
             source_key=key,
             state=ClearanceState.NEEDS_REVIEW,
-            note="Known person, not yet cleared. Invite to clear or route for BA review.",
+            note="Known person; review workflow-specific terms or route for BA review.",
             replacement_asset_key=replacement_key,
             **shared,
         )

@@ -1,4 +1,4 @@
-"""Pluribus AI Production Clearance Layer - ComfyUI adapter entry point."""
+"""Pluribus rights scan and terms workflow - ComfyUI adapter entry point."""
 
 from __future__ import annotations
 
@@ -47,12 +47,12 @@ class PluribusSourceMarker:
 
 
 class PluribusClearedTalent:
-    """Cleared talent from the Pluribus roster, dropped into the graph.
+    """Roster-linked talent placeholder dropped into the graph.
 
     Emits a placeholder likeness reference (striped frame, deterministic per
-    talent) plus the talent name so downstream nodes and the rights scan can
-    track the digital twin. Real reference assets stay in Pluribus; only a
-    scoped stand-in flows downstream.
+    talent) plus the talent name. The rights scan uses that name to look up the
+    current local roster record and list supported downstream graph nodes. Real
+    reference assets stay in Pluribus.
     """
 
     @classmethod
@@ -65,8 +65,8 @@ class PluribusClearedTalent:
     FUNCTION = "emit"
     CATEGORY = "Pluribus"
     DESCRIPTION = (
-        "Cleared talent from your Pluribus roster. Consent scope travels with the "
-        "likeness; downstream operations on the digital twin are tracked."
+        "Roster-linked talent placeholder. Review scope from the current local "
+        "roster record; scans list supported downstream graph nodes."
     )
 
     def emit(self, talent):
@@ -102,7 +102,7 @@ NODE_CLASS_MAPPINGS: dict = {
 }
 NODE_DISPLAY_NAME_MAPPINGS: dict = {
     "PluribusSourceMarker": "Pluribus Source Marker",
-    "PluribusClearedTalent": "Pluribus · Cleared Talent",
+    "PluribusClearedTalent": "Pluribus · Talent Record",
 }
 
 _HERE = os.path.dirname(__file__)
@@ -125,15 +125,16 @@ def _resolve_data_dir() -> str:
         if not candidate:
             continue
         try:
-            os.makedirs(candidate, exist_ok=True)
+            from pluribus.storage import ensure_private_dir
+
+            ensure_private_dir(candidate)
             if os.access(candidate, os.W_OK):
                 return candidate
         except OSError:
             continue
-    import tempfile
+    from pluribus.storage import fallback_private_data_dir
 
-    fallback = os.path.join(tempfile.gettempdir(), "comfyui-pluribus")
-    os.makedirs(fallback, exist_ok=True)
+    fallback = fallback_private_data_dir(_HERE)
     print(
         "[Pluribus] Plugin directory is not writable; invite records will be "
         f"stored in {fallback} (set PLURIBUS_DATA_DIR to override)."
@@ -146,12 +147,14 @@ try:
 
     from pluribus.server import register_routes
 
+    _data_dir = _resolve_data_dir()
     register_routes(
         PromptServer.instance,
         roster_path=os.path.join(_HERE, "seed", "roster.json"),
-        actions_path=os.path.join(_resolve_data_dir(), "invites.json"),
+        actions_path=os.path.join(_data_dir, "invites.json"),
+        connection_path=os.path.join(_data_dir, "connection.json"),
     )
-    print("[Pluribus] Clearance layer routes registered.")
+    print("[Pluribus] Rights workflow routes registered.")
 except Exception as exc:  # pragma: no cover - ComfyUI runtime only.
     print(f"[Pluribus] Route registration skipped: {exc}")
 

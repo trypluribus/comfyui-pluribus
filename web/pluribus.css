@@ -369,6 +369,12 @@
 .plb-card.unidentified .plb-status-line .plb-dot {
   box-shadow: 0 0 6px var(--plb-state);
 }
+.plb-status-stack .plb-status-line + .plb-status-line { margin-top: 4px; }
+.plb-status-line.plb-terms-accepted { color: var(--plb-ok); }
+.plb-card .plb-status-line.plb-terms-accepted .plb-dot {
+  background: var(--plb-ok-dot);
+  box-shadow: none;
+}
 
 .plb-ops-label {
   font-size: 8.5px;
@@ -669,9 +675,9 @@
   font-size: 11px;
   color: var(--plb-accent);
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  user-select: text;
   font-family: ui-monospace, monospace;
 }
 .plb-linkbox .plb-meta--dim { flex-shrink: 0; }
@@ -741,4 +747,114 @@
   letter-spacing: -0.01em;
   cursor: pointer;
   box-shadow: 0 0 14px color-mix(in oklch, oklch(0.68 0.14 60) 22%, transparent);
+}
+
+/* ── Connect to Pluribus (device pairing) ─────────────────────────────── */
+
+.plb-linked--btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  letter-spacing: 0.1em;
+}
+.plb-linked--btn:hover .plb-linked-email { color: var(--plb-ink); }
+.plb-linked-email {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.plb-connect-cta {
+  flex-shrink: 0;
+  border: 1px solid var(--plb-line-strong);
+  background: transparent;
+  color: var(--plb-mute);
+  padding: 3px 9px;
+  border-radius: var(--plb-radius);
+  font-family: var(--plb-body);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.plb-connect-cta:hover {
+  border-color: var(--plb-accent);
+  color: var(--plb-accent);
+}
+
+.plb-connect-dialog {
+  width: 440px;
+}
+.plb-connect-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+.plb-connect-copy {
+  margin: 0;
+  color: var(--plb-mute);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.plb-connect-warn {
+  margin: 0;
+  color: var(--plb-bad);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.plb-connect-link {
+  color: var(--plb-accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+.plb-pairing-code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-align: center;
+  color: var(--plb-accent);
+  padding: 18px 12px;
+  background: var(--plb-surface);
+  border: 1px dashed var(--plb-line-strong);
+  border-radius: var(--plb-radius);
+  user-select: all;
+}
+.plb-connect-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--plb-mute);
+}
+.plb-connect-status--ok {
+  color: var(--plb-ok);
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.plb-dot--wait {
+  background: var(--plb-warn, #d9a53f);
+  animation: plb-pulse 1.6s ease-in-out infinite;
+}
+@keyframes plb-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.plb-connect-actions {
+  display: flex;
+  gap: 8px;
+}
+.plb-connect-dialog .plb-dialog-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
