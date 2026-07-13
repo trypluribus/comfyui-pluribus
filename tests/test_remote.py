@@ -39,6 +39,63 @@ def connection_path(tmp_path):
     return str(tmp_path / "connection.json")
 
 
+def test_default_fetch_allows_production_workflow_writes_to_finish(monkeypatch):
+    import aiohttp
+
+    captured = {}
+
+    class FakeResponse:
+        status = 200
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        async def json(self):
+            return {"saved": True}
+
+    class FakeSession:
+        def __init__(self, *, timeout):
+            captured["timeout"] = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        def request(self, method, url, *, json, headers):
+            captured["request"] = {
+                "method": method,
+                "url": url,
+                "json": json,
+                "headers": headers,
+            }
+            return FakeResponse()
+
+    monkeypatch.setattr(aiohttp, "ClientSession", FakeSession)
+
+    status, data = run(
+        remote._default_fetch(
+            "PUT",
+            "https://trypluribus.com/api/plugin/projects/project-1/use",
+            {"usageType": "advertising"},
+            "plt_token",
+        )
+    )
+
+    assert (status, data) == (200, {"saved": True})
+    assert captured["timeout"].total == 30
+    assert captured["request"] == {
+        "method": "PUT",
+        "url": "https://trypluribus.com/api/plugin/projects/project-1/use",
+        "json": {"usageType": "advertising"},
+        "headers": {"Authorization": "Bearer plt_token"},
+    }
+
+
 def test_status_disconnected_by_default(tmp_path):
     status = remote.get_status(connection_path(tmp_path))
     assert status["state"] == "disconnected"

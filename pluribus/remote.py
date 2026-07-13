@@ -24,6 +24,7 @@ SERVER_URL = os.environ.get("PLURIBUS_SERVER_URL", "https://trypluribus.com").rs
 
 CONNECTION_FILENAME = "connection.json"
 _EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_REMOTE_REQUEST_TIMEOUT_SECONDS = 30
 
 # One pairing in flight per ComfyUI process.
 _pending: dict[str, Any] | None = None
@@ -44,7 +45,11 @@ async def _default_fetch(
     headers = {}
     if token:
         headers["Authorization"] = f"Bearer {token}"
-    timeout = aiohttp.ClientTimeout(total=10)
+    # A production workflow write can legitimately take longer than ten seconds
+    # while the API completes its related persistence work. Keep the request
+    # bounded, but leave enough headroom to receive the committed response
+    # instead of incorrectly reporting the server as offline.
+    timeout = aiohttp.ClientTimeout(total=_REMOTE_REQUEST_TIMEOUT_SECONDS)
     try:
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.request(method, url, json=payload, headers=headers) as response:
