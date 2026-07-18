@@ -1,0 +1,103 @@
+name: Bug report
+description: Report a reproducible problem in the ComfyUI plugin.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the plugin. For vulnerabilities, use the private path in SECURITY.md. Never attach device tokens, account links, private media, biometric data, campaign material, local file paths, or unredacted logs.
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version or commit
+      description: Use a release tag such as v0.4.0-rc.2 or the full commit SHA for main.
+      placeholder: v0.4.0-rc.2
+    validations:
+      required: true
+  - type: dropdown
+    id: install-source
+    attributes:
+      label: Install source
+      options:
+        - Supported release tag
+        - Unreleased main branch
+        - Other fork or local modification
+    validations:
+      required: true
+  - type: input
+    id: comfyui-version
+    attributes:
+      label: ComfyUI version or commit
+      placeholder: Commit SHA or desktop version
+    validations:
+      required: true
+  - type: input
+    id: frontend-version
+    attributes:
+      label: ComfyUI frontend version
+      description: Enter Unknown if the frontend version is not visible.
+    validations:
+      required: true
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: 3.13.5
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      placeholder: macOS 15, Windows 11, Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: identity-backend
+    attributes:
+      label: Optional local identity backend
+      description: This applies only to unreleased main.
+      options:
+        - Not installed or not relevant
+        - Installed and available
+        - Installed but unavailable or failing
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use a minimal workflow with fictional or synthetic data where possible.
+      placeholder: |
+        1. Open ...
+        2. Choose ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots
+      description: Redact tokens, account links, emails, private media, local paths, and campaign data. This field is optional.
+      render: shell
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed secrets, private media, biometric data, campaign material, local file paths, and personal information.
+          required: true

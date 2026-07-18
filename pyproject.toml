@@ -1,9 +1,12 @@
 [project]
 name = "comfyui-pluribus"
+# Comfy Registry requires an X.Y.Z semantic version here. This metadata reserves
+# the intended stable version; it does not mean that a tag or release exists.
 version = "0.4.0"
 description = "People, intended-use, and recipient-confirmation workflow inside ComfyUI — the Pluribus talent layer."
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+# Widen only after the next Python minor passes the standalone CI matrix.
+requires-python = ">=3.10,<3.15"
 
 [project.optional-dependencies]
 # Kept optional to avoid forcing a large native wheel or a NumPy change into
@@ -25,8 +28,9 @@ Issues = "https://github.com/trypluribus/comfyui-pluribus/issues"
 [tool.comfy]
 PublisherId = "pluribus"
 DisplayName = "Pluribus — Rights Scan & Talent Records"
-Icon = "https://trypluribus.com/brand/app-icons/icon-amber-bg-512.png"
+Icon = "https://trypluribus.com/brand/app-icons/icon-amber-bg-192.png"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"

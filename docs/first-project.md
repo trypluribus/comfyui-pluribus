@@ -5,15 +5,10 @@ with real people in it. It starts from a clean install and a new Pluribus
 workspace. It does not use the bundled test personas or pretend that a fixture
 person belongs to the user.
 
-> **Verification note:** on 2026-07-13, this producer/recipient loop ran against
-> the deployed production API using public prereleases. The zero-state portion
-> began on RC1. After RC1 exposed a false-offline timeout, the exact public
-> `v0.4.0-rc.2` tag at commit
-> `096571bc16b0d03f62dc469a0b0e6e68057651bb` replaced it in the same isolated
-> state, recovered the work, and completed the remaining checks. The run used
-> `alhassan@berkeley.edu`, a returning authenticated account that created its
-> first v0.4 workspace, and a real Pluribus project with no demo personas. The
-> exact coverage and remaining gaps are recorded below.
+This evergreen walkthrough uses the supported `v0.4.0-rc.2` release. The
+default `main` branch contains unreleased development work and is not the
+supported install. Exact production evidence and remaining final-tag gates live
+in the [dated RC2 rehearsal record](release-rehearsal-2026-07-13.md).
 
 Pluribus helps you answer five practical questions:
 
@@ -23,14 +18,16 @@ Pluribus helps you answer five practical questions:
 4. What did each recipient say about that request?
 5. Has our own team separately reviewed the result?
 
-It does not identify a face from pixels, clear rights, or replace your legal,
-business-affairs, union, or production review.
+It does not discover a person's legal identity from pixels, clear rights, or
+replace your legal, business-affairs, union, or production review. Unreleased
+`main` can optionally detect faces and group visually similar appearances
+locally, but those results still require producer review.
 
 ## Before you start
 
 Have the following ready:
 
-- ComfyUI with Python 3.10 or newer;
+- ComfyUI with Python 3.10 through 3.14;
 - the character-sheet, storyboard, production, or final workflow you are
   already building;
 - the real client/company name and a plain-language project description;
@@ -50,13 +47,6 @@ campaign material merely to make the test look realistic.
 
 ```bash
 cd /path/to/ComfyUI/custom_nodes
-git clone https://github.com/trypluribus/comfyui-pluribus
-```
-
-`v0.4.0-rc.2` is the current production-rehearsed candidate. Pin it explicitly
-if you are testing before the final release:
-
-```bash
 git clone --branch v0.4.0-rc.2 --depth 1 \
   https://github.com/trypluribus/comfyui-pluribus
 ```
@@ -108,9 +98,12 @@ source key. A prompt-only marker may omit the key, but it must include a display
 name or note. Pluribus ignores incomplete markers and reports them above the
 source list instead of treating them as people.
 
-Review every result. The scan can miss a person behind an unsupported custom
-node. It can also flag an image input without knowing whether the pixels truly
-contain a person. It never performs face recognition.
+Review every result. The supported RC2 scan can miss a person behind an
+unsupported custom node. It can also flag an image input without inspecting
+whether its pixels truly contain a person. Unreleased `main` adds optional local
+face detection and within-project visual-similarity grouping; see
+[Local identity analysis](local-identity-analysis.md). That analysis does not
+discover a legal identity or prove permission.
 
 At this stage, finding a source creates no person, permission, or confirmation
 record in Pluribus.
@@ -122,9 +115,7 @@ Choose **Connect**. The panel displays a short code and directs you to
 
 1. Enter your email address.
 2. Open the sign-in link on the same device. Check Spam if it does not arrive in
-   Inbox. The production rehearsal verified that a Pluribus confirmation
-   notification reached the Berkeley Inbox, but it reused an existing auth
-   session; fresh signup/auth placement was not retested.
+   Inbox.
 3. Enter the code shown in your own ComfyUI panel.
 4. Approve the connection.
 
@@ -301,8 +292,7 @@ rights manifest. Repeat the review/save step for another workflow even when no
 project-wide field changed.
 
 Usage start and end are calendar dates, not midnight instants. The recipient
-page must display the same entered dates in every time zone; the local launch
-rehearsal found and fixed a one-day Chicago offset before release.
+page must display the same entered dates in every time zone.
 
 ## 8. Preview and request confirmation
 
@@ -410,11 +400,8 @@ sampler, or editing unrelated plumbing can change that graph hash without
 changing the rights manifest. v0.4 does not invalidate a recipient response
 merely because the whole graph changed.
 
-This boundary was exercised in production with the public release candidate.
-Editing an unrelated storyboard marker note preserved the current confirmation.
-Changing another source from **Review required** to **Not a person** changed the
-rights manifest and made the prior response display **Scope changed — request
-again**.
+For the supported release's production evidence for both sides of this
+boundary, see the [dated RC2 rehearsal record](release-rehearsal-2026-07-13.md).
 
 Source display labels are excluded from the rights hash. Raw graph JSON,
 prompts, node IDs, local source keys, and file paths are never part of the
@@ -435,11 +422,7 @@ server to confirm revocation. If the service is offline, the plugin keeps the
 local token so revocation can be retried rather than pretending it succeeded.
 After successful revocation, the credential is removed but private
 `bindings.json` is intentionally retained. Reconnecting should recover the same
-local workflow/source identities, not mint unrelated ones. The production
-rehearsal verified restart persistence, revocation of all issued credentials,
-and returning-owner recovery after deployed server commit `94e3840`; the
-installed plugin remained the exact public `v0.4.0-rc.2` tag throughout that
-retest.
+local workflow/source identities, not mint unrelated ones.
 
 ## What leaves your machine
 
@@ -464,10 +447,13 @@ The connected flow sends:
 
 The device label sent during pairing is `ComfyUI plugin`, not your hostname.
 
-## Current product limits
+## Supported RC2 product limits
 
-- No face recognition or pixel inspection.
-- No automatic identification of the person in an image.
+- The RC2 scanner follows graph provenance and does not inspect pixels.
+  Unreleased `main` can optionally detect faces and group visually similar
+  appearances locally, but it does not identify a legal person or determine
+  permission.
+- No automatic legal identification of the person in an image.
 - No media, graph, prompt, or model upload through this plugin.
 - No storyboard, character-sheet, or render generation.
 - No contracts, e-signature, payments, marketplace, or legal advice.
@@ -482,103 +468,7 @@ The device label sent during pairing is `ComfyUI plugin`, not your hostname.
   render-ready production graph.
 - Link-only ambiguous retry identity is held by the open dialog and is not yet
   recoverable after a reload.
-- The production-rehearsed candidate used marker-only workflows. It did not
-  validate downstream AI-action inference, a render-ready production graph, or
-  real media upload/generation.
 
-## Production rehearsal evidence
-
-On 2026-07-13, the rehearsal started from an anonymous public RC1 clone in a
-clean ComfyUI base and data directory. The returning auth user
-`alhassan@berkeley.edu` explicitly created their first v0.4 personal workspace
-and a real project for Pluribus. No bundled talent or demo permission state was
-present. When RC1 exposed the timeout described below, it was preserved and
-replaced in that same isolated state by an anonymous clone of public
-`v0.4.0-rc.2` at commit
-`096571bc16b0d03f62dc469a0b0e6e68057651bb`. RC2 recovered the existing work
-and completed the remaining production flow; this was not a second zero-state
-run performed entirely on RC2.
-
-The run bound separate character-sheet and storyboard workflows to that
-project, created and reused the real project person, linked one person to
-multiple sources, saved and reloaded the full intended-use brief, completed a
-copy-link confirmation with a caveat, and completed an emailed approval. Both
-recipient results synced while internal review stayed **Not reviewed**; v0.4
-does not expose an internal approval action in the ComfyUI panel. Restart
-recovered the private workflow bindings, and disconnect revoked the production
-token and removed the local connection record.
-
-Re-pairing initially exposed a returning-user defect: the new token did not
-restore the owner's existing workspace. Server commit `94e3840`, deployed as
-`dpl_ASu7WVj3vvEjen5ad1nAyjQFdJN8`, fixed that path. A fresh re-pair then
-recovered the existing workspace, project, storyboard, links, and statuses
-automatically with the exact `v0.4.0-rc.2` plugin still installed. An unrelated
-storyboard marker-note edit advanced graph audit state but preserved the rights
-manifest and **Confirmed** status; changing the crowd source from **Review
-required** to **Not a person** changed the rights manifest and the storyboard
-recipient status to **Scope changed — request again**. The separate
-character-sheet response remained current for its unchanged manifest. A full
-process restart preserved
-the new disposition and recovered state. The final disconnect removed the local
-connection secret, retained private bindings, and left all issued credentials
-revoked. The reconnect correction was server-only; no RC2 plugin code changed.
-
-The workflows used explicit source markers. No real image, model, character
-sheet, storyboard media, render, or video was uploaded or generated, so the run
-did not validate downstream AI-action inference or a render-ready production
-path. The first release candidate incorrectly reported the production service
-offline when a valid intended-use write exceeded its 10-second HTTP timeout;
-`v0.4.0-rc.2` raised the bounded request timeout to 30 seconds, and a subsequent
-equivalent intended-use write on the storyboard workflow completed successfully
-in 13.59 seconds. It was not a verbatim replay of the earlier character-sheet
-request.
-
-## Public-launch rehearsal checklist
-
-Run this from a clean public release, not a monorepo symlink:
-
-- [x] A clean install shows no bundled people or fixture permission states.
-- [x] A clean returning account pairs successfully.
-- [x] The account explicitly creates or selects the correct workspace.
-- [x] A real-client project is created with no demo talent.
-- [x] Character-sheet and storyboard workflows bind to the same project.
-- [x] A never-before-seen source can create and link a new project person.
-- [ ] One source links to two people.
-- [x] One person links to two sources.
-- [x] Not-person and review-required classifications persist across restart.
-- [x] The full intended-use form saves and reloads accurately.
-- [x] Copy-link and email recipient paths both complete; the email notification
-  reached the owned Berkeley Inbox.
-- [x] The tested caveat and approval outcomes sync without changing internal
-  review.
-- [ ] The remaining recipient outcomes sync without changing internal review.
-- [x] A rights-relevant source-disposition edit changes the manifest and makes
-  the prior response display **Scope changed — request again**.
-- [x] An unrelated marker-note edit changes only graph audit state and preserves
-  the current confirmation.
-- [ ] Network inspection confirms no graph, prompt, path, image, or model data
-  leaves ComfyUI.
-- [x] Restart recovers the project and private workflow/source bindings.
-- [x] Disconnect revokes the token and removes the local connection record.
-- [ ] Fresh signup/auth email placement is retested; the auth message available
-  during this run was older and generic.
-- [ ] Confirmation and signup/auth email placement is checked in a new owned
-  non-Google mailbox.
-- [ ] The internal-review handoff is completed in the canonical web workspace.
-- [ ] A supported non-marker workflow exercises a normalized AI action plus
-  production and final-review kinds, with network/privacy inspection.
-- [ ] Slow writes and recipient submission have clear progress and safe
-  retry/reconciliation behavior.
-- [ ] The entire zero-state journey is repeated using only the exact final
-  artifact.
-
-The checked items passed across the deployed production rehearsal, which began
-on public RC1 and ended on the exact public `v0.4.0-rc.2` tag. Leave the
-unchecked items visible; do not infer them from automated allow-list tests or
-the marker-only rehearsal. Fresh signup/email placement, internal review, a
-privacy-inspected non-marker production/final flow, latency/reconciliation, and
-the exact-final-artifact zero-state run are hard final-tag gates. The one-
-source-to-two-people and remaining-recipient-outcome items are additional
-production coverage; if still open at tagging, documentation must call them
-automated-only or unverified rather than production-certified. The stable
-`v0.4.0` tag remains on hold while the hard gates are open.
+For dated production evidence, known verification boundaries, and the remaining
+final-tag gates, see the
+[v0.4.0-rc.2 rehearsal record](release-rehearsal-2026-07-13.md).
