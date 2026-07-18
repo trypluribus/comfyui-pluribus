@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 # every ComfyUI install. The panel detects this capability and keeps graph-only
 # source review available when the local vision backend is not installed.
 identity = [
+  "Pillow>=9.5",
   "numpy>=1.24,<3",
   "opencv-python-headless>=4.8,<5",
 ]

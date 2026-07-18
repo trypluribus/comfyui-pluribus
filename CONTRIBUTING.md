@@ -40,7 +40,9 @@ covered by its license.
 ## Development
 
 ```bash
+python -m pip install -r requirements-test.txt
 PYTHONDONTWRITEBYTECODE=1 python -m pytest -q -p no:cacheprovider
+node --test web/tests/contracts.test.mjs
 ```
 
 See `README.md` for installation and architecture notes.
