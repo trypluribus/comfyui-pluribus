@@ -71,3 +71,47 @@ def test_downstream_node_ids_dedupes_diamond_joins():
     found = WorkflowAdapter.from_comfyui_api(api).downstream_node_ids("2")
     assert found == ["3", "4", "9"]
     assert len(found) == len(set(found))
+
+
+def test_scan_terminal_nodes_includes_declared_outputs_and_custom_sinks():
+    api = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "person.png"}},
+        "2": {"class_type": "SaveImage", "inputs": {"images": ["1", 0]}},
+        "10": {"class_type": "LoadAudio", "inputs": {"audio": "voice.wav"}},
+        "11": {"class_type": "PartnerVoiceNode", "inputs": {"reference_audio": ["10", 0]}},
+    }
+
+    adapter = WorkflowAdapter.from_comfyui_api(api)
+
+    assert adapter.terminal_image_nodes() == ["2"]
+    assert adapter.scan_terminal_nodes() == ["2", "11"]
+
+
+def test_source_specific_path_excludes_siblings_and_preserves_destination_input():
+    api = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "person.png"}},
+        "2": {"class_type": "FluxKontextProImageNode", "inputs": {"image": ["1", 0]}},
+        "3": {"class_type": "LoadVideo", "inputs": {"file": "motion.mp4"}},
+        "4": {"class_type": "RunwayAleph2VideoToVideoNode", "inputs": {"video": ["3", 0]}},
+        "5": {
+            "class_type": "ByteDance2ReferenceNode",
+            "inputs": {
+                "model.reference_images.image_1": ["2", 0],
+                "model.reference_videos.video_1": ["4", 0],
+            },
+        },
+        "9": {"class_type": "SaveVideo", "inputs": {"video": ["5", 0]}},
+    }
+    adapter = WorkflowAdapter.from_comfyui_api(api)
+
+    assert adapter.source_path_node_ids("1", "9") == ["9", "5", "2", "1"]
+    assert adapter.source_provenance_path("1", "9") == [
+        "SaveVideo",
+        "ByteDance2ReferenceNode",
+        "FluxKontextProImageNode",
+        "LoadImage",
+    ]
+    assert adapter.source_input_names("1", "5") == [
+        "model.reference_images.image_1"
+    ]
+    assert adapter.source_path_node_ids("3", "9") == ["9", "5", "4", "3"]

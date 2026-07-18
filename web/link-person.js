@@ -1,11 +1,12 @@
 import { createProjectPerson } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
 import { personLocalKey } from "./manifest.js";
+import { localDraftsForPerson, markPersonDraftPromoted } from "./person-drafts.js";
 import { getState, projectPeople, projectSourceLinks } from "./store.js";
 import { syncCurrentRightsManifest } from "./sync-manifest.js";
 
 export function linkedPeopleForSource(person) {
-  const sourceRef = getState().sourceRefs[personLocalKey(person)];
+  const sourceRef = person.sourceRef || getState().sourceRefs[personLocalKey(person)];
   if (!sourceRef) return [];
   const links = projectSourceLinks().filter((link) =>
     (link.sourceRef || link.source_ref) === sourceRef
@@ -73,8 +74,40 @@ export function openLinkPersonDialog(person) {
     option("attorney", "Attorney"),
     option("guardian", "Parent or guardian"),
     option("talent", "Talent directly"),
+    option("rights_holder", "Rights holder"),
     option("other", "Other")
   );
+  const drafts = localDraftsForPerson(person, state);
+  let selectedDraft = drafts[0] || null;
+  const fillFromDraft = (draft) => {
+    name.value = draft?.displayName || "";
+    role.value = draft?.role || "";
+    talentEmail.value = draft?.talentEmail || "";
+    repRole.value = draft?.representative?.role || "manager";
+    repName.value = draft?.representative?.name || "";
+    repEmail.value = draft?.representative?.email || "";
+  };
+  fillFromDraft(drafts[0]);
+  const draftPicker = drafts.length > 1
+    ? el(
+        "select",
+        {
+          class: "plb-input",
+          onchange: (event) => {
+            selectedDraft = drafts.find((draft) => draft.draftId === event.target.value) || null;
+            fillFromDraft(selectedDraft);
+          },
+        },
+        drafts.map((draft) => option(draft.draftId, draft.displayName || "Unnamed person"))
+      )
+    : null;
+  const createNew = el("input", { type: "checkbox" });
+  const newPersonControls = [name, role, talentEmail, repRole, repName, repEmail];
+  const setCreateMode = () => {
+    for (const control of newPersonControls) control.disabled = !createNew.checked;
+  };
+  createNew.addEventListener("change", setCreateMode);
+  setCreateMode();
 
   const overlay = el("div", { class: "plb-overlay plb-root" });
   const close = () => {
@@ -92,8 +125,17 @@ export function openLinkPersonDialog(person) {
   const save = button("Link people", "primary", async () => {
     save.disabled = true;
     try {
-      const ids = checks.filter((item) => item.input.checked).map((item) => item.id);
-      if (name.value.trim()) {
+      const selectedExistingIds = checks
+        .filter((item) => item.input.checked)
+        .map((item) => item.id);
+      const ids = [...selectedExistingIds];
+      let promotedCanonicalId = null;
+      if (createNew.checked && !name.value.trim()) {
+        toast("Add a name for the new Pluribus person.");
+        save.disabled = false;
+        return;
+      }
+      if (createNew.checked) {
         const createdPayload = await createProjectPerson(state.activeProjectId, {
           mode: "new",
           displayName: name.value.trim(),
@@ -108,7 +150,10 @@ export function openLinkPersonDialog(person) {
             : undefined,
         });
         const created = createdPayload.person || createdPayload.talent || createdPayload;
-        ids.push(created.id || created.talentRecordId);
+        promotedCanonicalId = created.id || created.talentRecordId;
+        ids.push(promotedCanonicalId);
+      } else if (selectedExistingIds.length === 1) {
+        promotedCanonicalId = selectedExistingIds[0];
       }
       const uniqueIds = [...new Set(ids.filter(Boolean))];
       if (!uniqueIds.length) {
@@ -119,6 +164,14 @@ export function openLinkPersonDialog(person) {
       await saveSourceUpdate(person, "linked", uniqueIds);
       close();
       toast(`Linked ${uniqueIds.length} ${uniqueIds.length === 1 ? "person" : "people"}.`);
+      if (selectedDraft && promotedCanonicalId) {
+        try {
+          await markPersonDraftPromoted(selectedDraft, promotedCanonicalId);
+        } catch (error) {
+          console.warn("[Pluribus] linked person but could not mark local details as promoted", error);
+          toast("People were linked, but the local details could not be marked as linked.");
+        }
+      }
     } catch (error) {
       toast(error.message || "Could not link this source.");
       save.disabled = false;
@@ -141,6 +194,16 @@ export function openLinkPersonDialog(person) {
     "div",
     { class: "plb-dialog-right" },
     metaLabel("Add a new person", true),
+    draftPicker ? field("Person details", draftPicker) : null,
+    drafts.length === 1
+      ? el("p", { class: "plb-note", text: `Using details for ${drafts[0].displayName || "this person"}.` })
+      : null,
+    el(
+      "label",
+      { class: "plb-checkrow" },
+      createNew,
+      el("span", { text: "Create a new Pluribus person using these details" })
+    ),
     field("Name", name),
     field("Role in this project", role),
     field("Talent email", talentEmail),
@@ -159,7 +222,7 @@ export function openLinkPersonDialog(person) {
         "div",
         {},
         el("div", { class: "plb-dialog-title" }, pluribusMark(13), el("span", { text: "Link source to people" })),
-        el("div", { class: "plb-dialog-sub", text: "The source stays local; Pluribus receives an opaque reference only" })
+        el("div", { class: "plb-dialog-sub", text: "Connect person records to this source" })
       ),
       el("button", { class: "plb-x", type: "button", text: "×", onclick: close })
     ),
@@ -171,7 +234,7 @@ export function openLinkPersonDialog(person) {
 
 async function saveSourceUpdate(person, disposition, talentRecordIds) {
   const state = getState();
-  const sourceRef = state.sourceRefs[personLocalKey(person)];
+  const sourceRef = person.sourceRef || state.sourceRefs[personLocalKey(person)];
   if (!sourceRef) throw new Error("The local source reference is not ready. Rescan and try again.");
   await syncCurrentRightsManifest(new Map([
     [sourceRef, { disposition, talentRecordIds }],

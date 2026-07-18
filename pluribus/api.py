@@ -46,6 +46,12 @@ _SCOPE_RULES = (
         {"GeminiImage2Node", "FluxKontextProImageNode"},
         "AI editing of their reference image",
     ),
+    ({"LoadVideo"}, "Use of their source video as a generation source"),
+    ({"LoadAudio"}, "Use of their source audio / voice performance as a generation source"),
+    (
+        {"RunwayAleph2VideoToVideoNode"},
+        "AI editing of their source video",
+    ),
     (
         {"KlingImage2VideoNode"},
         "Animation of their likeness from image to video",
@@ -60,6 +66,20 @@ def _scope_statements(person: PersonInstance) -> list[str]:
     statements = [
         statement for class_types, statement in _SCOPE_RULES if classes & class_types
     ]
+    for operation in person.ops:
+        class_type = str(operation.get("class_type") or "")
+        source_role = str(operation.get("source_role") or "")
+        if class_type == "ByteDance2ReferenceNode":
+            role_statement = {
+                "reference_audio": "Conditioning AI generation on their voice / audio performance",
+                "reference_image": "Conditioning AI generation on their reference image / likeness",
+                "reference_video": "Conditioning AI generation on their source video / performance",
+            }.get(source_role)
+            if role_statement:
+                statements.append(role_statement)
+        elif class_type == "ByteDanceSeedreamNodeV2" and source_role == "reference_image":
+            statements.append("Conditioning AI generation on their reference image / likeness")
+    statements = list(dict.fromkeys(statements))
     return statements or ["Use of their likeness in this workflow"]
 
 
@@ -91,6 +111,9 @@ def _person_to_dict(
     return {
         "output_node_id": person.output_node_id,
         "source_node_id": person.source_node_id,
+        "output_node_ids": list(person.output_node_ids),
+        "source_node_ids": list(person.source_node_ids),
+        "occurrences": person.occurrences,
         "source_kind": person.source_kind,
         "source_key": person.source_key,
         "state": person.state.value,

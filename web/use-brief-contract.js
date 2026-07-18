@@ -1,3 +1,5 @@
+import { operationActions } from "./operation-registry.js";
+
 export function revocationPathRequired(paidMediaAllowed, channels, platforms) {
   if (paidMediaAllowed || platforms.length) return true;
   return channels.some((value) => !/^(internal|private review|concept|development)$/i.test(value.trim()));
@@ -18,8 +20,10 @@ export function aiActionRowsForLinks(links, requiresFinalApproval) {
       const values = byPerson.get(id) || new Map();
       for (const operation of link.operations || []) {
         const classType = operation.classType || operation.class_type;
-        const pair = operationConsent(classType);
-        if (pair) values.set(`${pair.modality}|${pair.action}`, pair);
+        const sourceRole = operation.sourceRole || operation.source_role || "";
+        for (const pair of operationActions(classType, sourceRole)) {
+          values.set(`${pair.modality}|${pair.action}`, pair);
+        }
       }
       byPerson.set(id, values);
     }
@@ -35,21 +39,4 @@ export function aiActionRowsForLinks(links, requiresFinalApproval) {
     }
   }
   return rows;
-}
-
-function operationConsent(classType) {
-  const map = {
-    ReActorFaceSwap: { modality: "face", action: "edit" },
-    IPAdapter: { modality: "face", action: "generate" },
-    IPAdapterAdvanced: { modality: "face", action: "generate" },
-    IPAdapterApply: { modality: "face", action: "generate" },
-    LoraLoader: { modality: "digital_replica", action: "generate" },
-    LoraLoaderModelOnly: { modality: "digital_replica", action: "generate" },
-    LoadImage: { modality: "biometric_input", action: "process" },
-    GeminiImage2Node: { modality: "face", action: "edit" },
-    FluxKontextProImageNode: { modality: "face", action: "edit" },
-    KlingImage2VideoNode: { modality: "synthetic_performance", action: "render" },
-    CLIPTextEncode: { modality: "nil", action: "generate" },
-  };
-  return map[classType] || null;
 }

@@ -21,11 +21,22 @@ from .storage import write_private_json
 
 SCHEMA_VERSION = 1
 WORKFLOW_KINDS = {"character_sheet", "storyboard", "production", "final", "other"}
-SOURCE_KINDS = {"reference", "lora", "prompt", "unknown"}
+SOURCE_KINDS = {"reference", "audio", "lora", "prompt", "unknown"}
 SOURCE_DISPOSITIONS = {"linked", "not_person", "review_required"}
+LOCAL_SOURCE_REVIEW_STATES = {"not_person", "review_required"}
+REPRESENTATIVE_ROLES = {
+    "talent",
+    "manager",
+    "agent",
+    "attorney",
+    "guardian",
+    "rights_holder",
+    "other",
+}
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 CLASS_TYPE_PATTERN = re.compile(r"[^A-Za-z0-9_.:-]+")
 IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 def _sha256_text(value: str) -> str:
@@ -64,6 +75,90 @@ def _require_identifier(value: object, field: str) -> str:
     if not IDENTIFIER_PATTERN.fullmatch(normalized):
         raise ValueError(f"{field} must be an opaque identifier.")
     return normalized
+
+
+def _optional_string(
+    value: object,
+    field: str,
+    max_length: int,
+) -> str | None:
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string.")
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > max_length:
+        raise ValueError(f"{field} must be at most {max_length} characters.")
+    return normalized
+
+
+def _optional_email(value: object, field: str) -> str | None:
+    normalized = _optional_string(value, field, 320)
+    if normalized and not EMAIL_PATTERN.fullmatch(normalized):
+        raise ValueError(f"{field} must be a valid email address.")
+    return normalized
+
+
+def _normalize_person_draft(
+    body: object,
+    known_source_refs: set[str],
+) -> dict[str, Any]:
+    """Allow-list one local person draft without accepting graph metadata."""
+    if not isinstance(body, dict):
+        raise ValueError("Person draft must be an object.")
+
+    result: dict[str, Any] = {}
+    if body.get("draftId") not in (None, ""):
+        result["draftId"] = _require_uuid(body.get("draftId"), "draftId")
+    if body.get("canonicalPersonId") not in (None, ""):
+        result["canonicalPersonId"] = _require_identifier(
+            body.get("canonicalPersonId"), "canonicalPersonId"
+        )
+
+    for field, limit in (("displayName", 160), ("role", 120), ("notes", 3000)):
+        value = _optional_string(body.get(field), field, limit)
+        if value:
+            result[field] = value
+
+    talent_email = _optional_email(body.get("talentEmail"), "talentEmail")
+    if talent_email:
+        result["talentEmail"] = talent_email
+
+    representative = body.get("representative")
+    if representative not in (None, ""):
+        if not isinstance(representative, dict):
+            raise ValueError("representative must be an object.")
+        representative_role = str(representative.get("role") or "manager")
+        if representative_role not in REPRESENTATIVE_ROLES:
+            raise ValueError("representative.role is not supported.")
+        safe_representative: dict[str, str] = {"role": representative_role}
+        representative_name = _optional_string(
+            representative.get("name"), "representative.name", 160
+        )
+        representative_email = _optional_email(
+            representative.get("email"), "representative.email"
+        )
+        if representative_name:
+            safe_representative["name"] = representative_name
+        if representative_email:
+            safe_representative["email"] = representative_email
+        result["representative"] = safe_representative
+
+    source_refs = body.get("sourceRefs")
+    if not isinstance(source_refs, list) or not source_refs:
+        raise ValueError("sourceRefs must be a non-empty list.")
+    if len(source_refs) > 100:
+        raise ValueError("sourceRefs may contain at most 100 entries.")
+    safe_source_refs = sorted(
+        {_require_sha256(source_ref, "sourceRef") for source_ref in source_refs}
+    )
+    for source_ref in safe_source_refs:
+        if source_ref not in known_source_refs:
+            raise ValueError("sourceRef was not minted for this workflow.")
+    result["sourceRefs"] = safe_source_refs
+    return result
 
 
 def normalize_source_links(
@@ -129,11 +224,27 @@ def normalize_source_links(
             class_type = normalize_class_type(
                 operation.get("classType", operation.get("class_type"))
             )
-            if class_type in seen_operations:
+            source_role = str(
+                operation.get("sourceRole", operation.get("source_role")) or ""
+            )
+            if source_role not in {
+                "",
+                "reference_audio",
+                "reference_image",
+                "reference_video",
+            }:
+                raise ValueError("operation.sourceRole is not supported.")
+            operation_key = f"{class_type}|{source_role}"
+            if operation_key in seen_operations:
                 continue
-            seen_operations.add(class_type)
-            safe_operations.append({"classType": class_type})
-        safe_operations.sort(key=lambda item: item["classType"])
+            seen_operations.add(operation_key)
+            safe_operation: dict[str, str] = {"classType": class_type}
+            if source_role:
+                safe_operation["sourceRole"] = source_role
+            safe_operations.append(safe_operation)
+        safe_operations.sort(
+            key=lambda item: f"{item['classType']}|{item.get('sourceRole', '')}"
+        )
 
         source_ref = _require_sha256(
             source.get("sourceRef", source.get("source_ref")), "sourceRef"
@@ -303,6 +414,160 @@ class BindingStore:
         with self._lock:
             binding = self._find(self._read(), str(workflow_ref or ""))
             return str(source_ref or "") in set(binding.get("source_refs", {}).values())
+
+    def source_matches_workflow(
+        self,
+        workflow_ref: object,
+        source_ref: object,
+        local_source_key: object,
+        source_kind: object,
+    ) -> bool:
+        """Verify that an opaque ref was minted for this exact local source slot."""
+
+        local_value = str(local_source_key or "")
+        if not local_value or len(local_value) > 4096:
+            return False
+        kind = str(source_kind or "unknown")
+        if kind not in SOURCE_KINDS:
+            return False
+        locator_digest = _sha256_text(f"{kind}\0{local_value}")
+        with self._lock:
+            binding = self._find(self._read(), str(workflow_ref or ""))
+            return binding.get("source_refs", {}).get(locator_digest) == str(
+                source_ref or ""
+            )
+
+    @staticmethod
+    def _person_drafts(binding: dict[str, Any]) -> dict[str, Any]:
+        drafts = binding.get("person_drafts")
+        return drafts if isinstance(drafts, dict) else {}
+
+    def list_person_drafts(
+        self,
+        workflow_ref: object,
+        source_ref: object | None = None,
+    ) -> list[dict[str, Any]]:
+        """List private drafts, optionally filtering by an opaque local source ref."""
+        with self._lock:
+            binding = self._find(self._read(), str(workflow_ref or ""))
+            known_source_refs = set(binding.get("source_refs", {}).values())
+            safe_source_ref = None
+            if source_ref not in (None, ""):
+                safe_source_ref = _require_sha256(source_ref, "sourceRef")
+                if safe_source_ref not in known_source_refs:
+                    raise ValueError("sourceRef was not minted for this workflow.")
+
+            drafts = []
+            for stored in self._person_drafts(binding).values():
+                normalized = _normalize_person_draft(stored, known_source_refs)
+                if safe_source_ref and safe_source_ref not in normalized["sourceRefs"]:
+                    continue
+                drafts.append(normalized)
+            return deepcopy(drafts)
+
+    def put_person_draft(
+        self,
+        workflow_ref: object,
+        body: object,
+    ) -> dict[str, Any]:
+        """Create or replace one local-only draft attached to one or more sources."""
+        with self._lock:
+            data = self._read()
+            binding = self._find(data, str(workflow_ref or ""))
+            known_source_refs = set(binding.get("source_refs", {}).values())
+            normalized = _normalize_person_draft(body, known_source_refs)
+            draft_id = normalized.get("draftId") or str(uuid.uuid4())
+            normalized["draftId"] = draft_id
+
+            drafts = binding.get("person_drafts")
+            if not isinstance(drafts, dict):
+                drafts = {}
+                binding["person_drafts"] = drafts
+            drafts[draft_id] = normalized
+            self._write(data)
+            return deepcopy(normalized)
+
+    def delete_person_draft(
+        self,
+        workflow_ref: object,
+        draft_id: object,
+    ) -> bool:
+        """Delete a local draft without changing source or project bindings."""
+        safe_draft_id = _require_uuid(draft_id, "draftId")
+        with self._lock:
+            data = self._read()
+            binding = self._find(data, str(workflow_ref or ""))
+            drafts = binding.get("person_drafts")
+            if not isinstance(drafts, dict) or safe_draft_id not in drafts:
+                return False
+            del drafts[safe_draft_id]
+            self._write(data)
+            return True
+
+    def list_source_reviews(self, workflow_ref: object) -> list[dict[str, str]]:
+        """List private producer outcomes for visual sources with no detected face."""
+        with self._lock:
+            binding = self._find(self._read(), str(workflow_ref or ""))
+            known_source_refs = set(binding.get("source_refs", {}).values())
+            stored = binding.get("source_reviews")
+            if not isinstance(stored, dict):
+                return []
+            reviews: list[dict[str, str]] = []
+            for source_ref, value in sorted(stored.items()):
+                if source_ref not in known_source_refs:
+                    continue
+                # Scalar values came from the short-lived pre-hash prototype.
+                state = (
+                    value
+                    if isinstance(value, str)
+                    else value.get("state")
+                    if isinstance(value, dict)
+                    else None
+                )
+                source_hash = (
+                    value.get("source_hash") if isinstance(value, dict) else None
+                )
+                if state not in LOCAL_SOURCE_REVIEW_STATES:
+                    continue
+                review = {"sourceRef": source_ref, "state": state}
+                if isinstance(source_hash, str) and SHA256_PATTERN.fullmatch(source_hash):
+                    review["sourceHash"] = source_hash
+                reviews.append(review)
+            return reviews
+
+    def put_source_review(
+        self,
+        workflow_ref: object,
+        source_ref: object,
+        body: object,
+    ) -> dict[str, str]:
+        """Persist a local, reversible no-face review without requiring a connection."""
+        if not isinstance(body, dict):
+            raise ValueError("Source review must be an object.")
+        safe_source_ref = _require_sha256(source_ref, "sourceRef")
+        state = str(body.get("state") or "")
+        if state not in LOCAL_SOURCE_REVIEW_STATES:
+            raise ValueError("Source review state is not supported.")
+        source_hash = _require_sha256(body.get("sourceHash"), "sourceHash")
+        with self._lock:
+            data = self._read()
+            binding = self._find(data, str(workflow_ref or ""))
+            if safe_source_ref not in set(binding.get("source_refs", {}).values()):
+                raise ValueError("sourceRef was not minted for this workflow.")
+            reviews = binding.get("source_reviews")
+            if not isinstance(reviews, dict):
+                reviews = {}
+                binding["source_reviews"] = reviews
+            reviews[safe_source_ref] = {
+                "state": state,
+                "source_hash": source_hash,
+            }
+            self._write(data)
+            return {
+                "sourceRef": safe_source_ref,
+                "state": state,
+                "sourceHash": source_hash,
+            }
 
     def source_links_payload(
         self, workflow_ref: object, project_id: object, body: dict[str, Any]

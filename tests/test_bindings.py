@@ -32,6 +32,24 @@ def test_workflow_and_source_refs_are_random_stable_and_private(tmp_path):
     )
     assert re.fullmatch(r"[0-9a-f]{64}", source["sourceRef"])
     assert source == source_again
+    assert store.source_matches_workflow(
+        first["workflowRef"],
+        source["sourceRef"],
+        "/Users/person/reference/alex-final.png",
+        "reference",
+    )
+    assert not store.source_matches_workflow(
+        first["workflowRef"],
+        source["sourceRef"],
+        "/Users/person/reference/other.png",
+        "reference",
+    )
+    assert not store.source_matches_workflow(
+        first["workflowRef"],
+        source["sourceRef"],
+        "/Users/person/reference/alex-final.png",
+        "audio",
+    )
 
     with open(path, encoding="utf-8") as handle:
         private_text = handle.read()
@@ -129,6 +147,326 @@ def test_source_ref_must_have_been_minted_for_workflow(tmp_path):
                 ],
             },
         )
+
+
+def test_source_manifest_preserves_bounded_operation_input_roles(tmp_path):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("audio-workflow")
+    source = store.resolve_source(
+        workflow["workflowRef"], "dialogue.wav", "reference"
+    )
+    payload = store.source_links_payload(
+        workflow["workflowRef"],
+        "project-1",
+        {
+            "workflowKind": "production",
+            "sources": [
+                {
+                    "sourceRef": source["sourceRef"],
+                    "sourceKind": "reference",
+                    "disposition": "review_required",
+                    "talentRecordIds": [],
+                    "operations": [
+                        {
+                            "classType": "ByteDance2ReferenceNode",
+                            "sourceRole": "reference_audio",
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert payload["sources"][0]["operations"] == [
+        {
+            "classType": "ByteDance2ReferenceNode",
+            "sourceRole": "reference_audio",
+        }
+    ]
+
+    with pytest.raises(ValueError, match="sourceRole"):
+        normalize_source_links(
+            workflow_ref=workflow["workflowRef"],
+            workflow_kind="production",
+            graph_hash=None,
+            sources=[
+                {
+                    "sourceRef": source["sourceRef"],
+                    "sourceKind": "reference",
+                    "disposition": "review_required",
+                    "operations": [
+                        {
+                            "classType": "ByteDance2ReferenceNode",
+                            "sourceRole": "private_socket_name",
+                        }
+                    ],
+                }
+            ],
+        )
+
+
+def test_local_person_drafts_support_many_to_many_source_links(tmp_path):
+    path = str(tmp_path / "bindings.json")
+    store = BindingStore(path)
+    workflow = store.resolve_workflow("legacy-workflow")
+    store.associate(workflow["workflowRef"], "project-1", "storyboard")
+    source_a = store.resolve_source(
+        workflow["workflowRef"], "/private/alex-closeup.png", "reference"
+    )["sourceRef"]
+    source_b = store.resolve_source(
+        workflow["workflowRef"], "/private/alex-profile.png", "reference"
+    )["sourceRef"]
+
+    alex = store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "canonicalPersonId": "person_123",
+            "displayName": "  Alex Person  ",
+            "role": "Lead actor",
+            "talentEmail": "alex@example.com",
+            "representative": {
+                "role": "manager",
+                "name": "Pat Manager",
+                "email": "pat@example.com",
+                "privateNodeId": "42",
+            },
+            "notes": "Confirm the profile and close-up are the same person.",
+            "sourceRefs": [source_b, source_a, source_a],
+            "workflow": {"private": "graph JSON must not persist"},
+            "sourcePath": "/private/alex-closeup.png",
+            "thumbnail": "data:image/png;base64,private",
+        },
+    )
+    jordan = store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "displayName": "Jordan Double",
+            "sourceRefs": [source_a],
+        },
+    )
+
+    assert uuid.UUID(alex["draftId"])
+    assert alex["canonicalPersonId"] == "person_123"
+    assert alex["sourceRefs"] == sorted([source_a, source_b])
+    assert {draft["draftId"] for draft in store.list_person_drafts(
+        workflow["workflowRef"], source_a
+    )} == {alex["draftId"], jordan["draftId"]}
+    assert store.list_person_drafts(workflow["workflowRef"], source_b) == [alex]
+
+    with open(path, encoding="utf-8") as handle:
+        persisted = json.load(handle)
+    assert persisted["version"] == 1
+    binding = next(iter(persisted["workflows"].values()))
+    assert binding["project_id"] == "project-1"
+    assert binding["workflow_kind"] == "storyboard"
+    assert len(binding["person_drafts"]) == 2
+    private_text = json.dumps(persisted)
+    assert "graph JSON" not in private_text
+    assert "alex-closeup" not in private_text
+    assert "data:image" not in private_text
+    assert "privateNodeId" not in private_text
+
+
+def test_local_person_draft_upsert_replaces_fields_and_delete_is_scoped(tmp_path):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("workflow-one")
+    other_workflow = store.resolve_workflow("workflow-two")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    other_source = store.resolve_source(
+        other_workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    first = store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "displayName": "Alex",
+            "role": "Actor",
+            "representative": {"name": "Morgan"},
+            "sourceRefs": [source],
+        },
+    )
+    other = store.put_person_draft(
+        other_workflow["workflowRef"],
+        {"displayName": "Alex", "sourceRefs": [other_source]},
+    )
+
+    updated = store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "draftId": first["draftId"],
+            "displayName": "Alex Updated",
+            "sourceRefs": [source],
+        },
+    )
+
+    assert updated == {
+        "draftId": first["draftId"],
+        "displayName": "Alex Updated",
+        "sourceRefs": [source],
+    }
+    assert store.delete_person_draft(workflow["workflowRef"], first["draftId"])
+    assert not store.delete_person_draft(workflow["workflowRef"], first["draftId"])
+    assert store.list_person_drafts(workflow["workflowRef"]) == []
+    assert store.list_person_drafts(other_workflow["workflowRef"]) == [other]
+
+
+@pytest.mark.parametrize(
+    "body, message",
+    [
+        ({"sourceRefs": []}, "non-empty"),
+        (
+            {"sourceRefs": ["SOURCE"], "talentEmail": "not-an-email"},
+            "valid email",
+        ),
+        (
+            {
+                "sourceRefs": ["SOURCE"],
+                "representative": {"role": "publicist"},
+            },
+            "not supported",
+        ),
+        (
+            {"sourceRefs": ["SOURCE"], "displayName": "x" * 161},
+            "at most 160",
+        ),
+        (
+            {"sourceRefs": ["SOURCE"], "canonicalPersonId": "not opaque"},
+            "opaque identifier",
+        ),
+    ],
+)
+def test_local_person_draft_validates_private_contract(tmp_path, body, message):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("workflow")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    body = {
+        key: ([source] if value == ["SOURCE"] else value)
+        for key, value in body.items()
+    }
+
+    with pytest.raises(ValueError, match=message):
+        store.put_person_draft(workflow["workflowRef"], body)
+
+
+def test_local_person_draft_rejects_source_from_another_workflow(tmp_path):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("workflow-one")
+    other_workflow = store.resolve_workflow("workflow-two")
+    other_source = store.resolve_source(
+        other_workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+
+    with pytest.raises(ValueError, match="not minted"):
+        store.put_person_draft(
+            workflow["workflowRef"],
+            {"displayName": "Alex", "sourceRefs": [other_source]},
+        )
+
+
+def test_local_source_reviews_are_private_scoped_and_reversible(tmp_path):
+    path = str(tmp_path / "bindings.json")
+    store = BindingStore(path)
+    workflow = store.resolve_workflow("workflow-one")
+    other_workflow = store.resolve_workflow("workflow-two")
+    source = store.resolve_source(
+        workflow["workflowRef"], "/private/nightmare-shadow.png", "reference"
+    )["sourceRef"]
+    other_source = store.resolve_source(
+        other_workflow["workflowRef"], "/private/other.png", "reference"
+    )["sourceRef"]
+
+    assert store.list_source_reviews(workflow["workflowRef"]) == []
+    assert store.put_source_review(
+        workflow["workflowRef"], source, {"state": "not_person", "sourceHash": "a" * 64}
+    ) == {"sourceRef": source, "state": "not_person", "sourceHash": "a" * 64}
+    assert store.put_source_review(
+        workflow["workflowRef"], source, {"state": "review_required", "sourceHash": "b" * 64}
+    ) == {"sourceRef": source, "state": "review_required", "sourceHash": "b" * 64}
+    assert store.list_source_reviews(workflow["workflowRef"]) == [
+        {"sourceRef": source, "state": "review_required", "sourceHash": "b" * 64}
+    ]
+    assert store.list_source_reviews(other_workflow["workflowRef"]) == []
+
+    with pytest.raises(ValueError, match="not supported"):
+        store.put_source_review(
+            workflow["workflowRef"], source, {"state": "person_added"}
+        )
+    with pytest.raises(ValueError, match="not minted"):
+        store.put_source_review(
+            workflow["workflowRef"], other_source, {"state": "not_person", "sourceHash": "c" * 64}
+        )
+
+    persisted = json.loads((tmp_path / "bindings.json").read_text(encoding="utf-8"))
+    assert "/private" not in json.dumps(persisted)
+    assert "nightmare-shadow" not in json.dumps(persisted)
+
+
+def test_local_person_draft_pii_never_enters_outbound_source_manifest(tmp_path):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("private-workflow")
+    store.associate(workflow["workflowRef"], "project-1", "storyboard")
+    source_ref = store.resolve_source(
+        workflow["workflowRef"], "/private/alex.png", "reference"
+    )["sourceRef"]
+    store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "canonicalPersonId": "person_private_123",
+            "displayName": "Alex Private Person",
+            "talentEmail": "alex.private@example.com",
+            "representative": {
+                "role": "agent",
+                "name": "Riley Private Rep",
+                "email": "riley.private@example.com",
+            },
+            "notes": "Private casting and contact notes must remain local.",
+            "sourceRefs": [source_ref],
+        },
+    )
+
+    outbound = store.source_links_payload(
+        workflow["workflowRef"],
+        "project-1",
+        {
+            "workflowKind": "storyboard",
+            "sources": [
+                {
+                    "sourceRef": source_ref,
+                    "sourceKind": "reference",
+                    "disposition": "review_required",
+                    "talentRecordIds": [],
+                    "operations": [{"classType": "IPAdapter"}],
+                }
+            ],
+        },
+    )
+
+    serialized = json.dumps(outbound)
+    for private_value in (
+        "Alex Private Person",
+        "alex.private@example.com",
+        "Riley Private Rep",
+        "riley.private@example.com",
+        "Private casting and contact notes must remain local.",
+        "person_private_123",
+    ):
+        assert private_value not in serialized
+    assert set(outbound) == {
+        "workflowRef",
+        "workflowKind",
+        "sources",
+        "manifestHash",
+    }
+    assert set(outbound["sources"][0]) == {
+        "sourceRef",
+        "sourceKind",
+        "disposition",
+        "talentRecordIds",
+        "operations",
+    }
 
 
 def test_manifest_hash_is_order_stable():

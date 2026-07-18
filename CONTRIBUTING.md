@@ -18,6 +18,18 @@ The CLA process is being finalized. Until it is in place, please open an
 issue describing the change you'd like to make before writing significant
 code, so we can coordinate.
 
+## Maintainer sync boundary
+
+Pluribus maintains the canonical plugin source under `comfyui-pluribus/` in
+the private product monorepo and publishes its exact tested tree to this public
+repository. External issues and pull requests are still welcome here. Before a
+standalone contribution is merged, a maintainer will land or reconcile it in
+the canonical subtree and verify that both repository trees match.
+
+A merge to the standalone repository does not by itself create a versioned
+release. Tags, GitHub releases, and Comfy Registry publication follow a
+separate release decision and clean-install verification.
+
 ## Scope note
 
 This repository contains the local ComfyUI plugin only. Pluribus

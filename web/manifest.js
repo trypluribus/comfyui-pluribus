@@ -3,38 +3,29 @@
 // leave localhost and never invalidate a confirmation. Only source/person
 // relationships and operations that materially affect a person's likeness do.
 
-const RIGHTS_RELEVANT_OPERATIONS = new Set([
-  "ReActorFaceSwap",
-  "IPAdapter",
-  "IPAdapterAdvanced",
-  "IPAdapterApply",
-  "LoraLoader",
-  "LoraLoaderModelOnly",
-  "LoadImage",
-  "GeminiImage2Node",
-  "FluxKontextProImageNode",
-  "KlingImage2VideoNode",
-  "CLIPTextEncode",
-]);
+import { RIGHTS_RELEVANT_OPERATIONS } from "./operation-registry.js";
 
 export function personLocalKey(person) {
   return [person.source_kind || "unknown", person.source_key || "", person.source_node_id || ""].join("|");
 }
 
 export function normalizedOperations(person) {
-  const values = [];
+  const values = new Map();
   for (const operation of person.ops || []) {
     const classType = String(operation.class_type || operation.classType || "");
-    if (RIGHTS_RELEVANT_OPERATIONS.has(classType) && !values.includes(classType)) {
-      values.push(classType);
+    const sourceRole = String(operation.source_role || operation.sourceRole || "");
+    if (RIGHTS_RELEVANT_OPERATIONS.has(classType)) {
+      values.set(`${classType}|${sourceRole}`, {
+        classType,
+        ...(sourceRole ? { sourceRole } : {}),
+      });
     }
   }
-  for (const classType of person.provenance || []) {
-    if (RIGHTS_RELEVANT_OPERATIONS.has(classType) && !values.includes(classType)) {
-      values.push(classType);
-    }
-  }
-  return values.sort().map((classType) => ({ classType }));
+  return [...values.values()].sort((left, right) =>
+    `${left.classType}|${left.sourceRole || ""}`.localeCompare(
+      `${right.classType}|${right.sourceRole || ""}`
+    )
+  );
 }
 
 // Rebuild the complete current manifest from a fresh local scan. Existing
@@ -72,10 +63,15 @@ export function manifestSourcesForScan(persons, sourceRefs, existingSources, ove
     const prior = currentByRef.get(sourceRef);
     const operations = normalizedOperations(person);
     if (prior) {
-      prior.operations = [...new Set([
-        ...prior.operations.map((operation) => operation.classType),
-        ...operations.map((operation) => operation.classType),
-      ])].sort().map((classType) => ({ classType }));
+      const merged = new Map();
+      for (const operation of [...prior.operations, ...operations]) {
+        merged.set(`${operation.classType}|${operation.sourceRole || ""}`, operation);
+      }
+      prior.operations = [...merged.values()].sort((left, right) =>
+        `${left.classType}|${left.sourceRole || ""}`.localeCompare(
+          `${right.classType}|${right.sourceRole || ""}`
+        )
+      );
       continue;
     }
     currentByRef.set(sourceRef, {
@@ -90,6 +86,47 @@ export function manifestSourcesForScan(persons, sourceRefs, existingSources, ove
     .sort((left, right) => left.sourceRef.localeCompare(right.sourceRef));
 }
 
+export function manifestOverridesForLocalReviews(
+  sourceReviews,
+  existingSources,
+  overrides = new Map(),
+  sourceHashes = [],
+  personDrafts = []
+) {
+  const merged = new Map();
+  const existingByRef = new Map(
+    (existingSources || []).map((source) => [
+      String(source.sourceRef || source.source_ref || ""),
+      source,
+    ])
+  );
+  const currentHashes = new Map(
+    (sourceHashes || []).map((entry) => [entry.sourceRef, entry.sourceHash])
+  );
+  for (const [sourceRef, review] of Object.entries(sourceReviews || {})) {
+    if (!["not_person", "review_required"].includes(review?.state)) continue;
+    if (existingByRef.get(sourceRef)?.disposition === "linked") continue;
+    const currentHash = currentHashes.get(sourceRef);
+    if (!currentHash) continue;
+    merged.set(sourceRef, {
+      disposition: currentHash === review.sourceHash
+        ? review.state
+        : "review_required",
+    });
+  }
+  for (const draft of personDrafts || []) {
+    for (const sourceRef of draft.sourceRefs || []) {
+      if (existingByRef.get(sourceRef)?.disposition === "linked") continue;
+      merged.set(sourceRef, { disposition: "review_required" });
+    }
+  }
+  const explicit = overrides instanceof Map
+    ? overrides
+    : new Map(Object.entries(overrides || {}));
+  for (const [sourceRef, value] of explicit) merged.set(sourceRef, value);
+  return merged;
+}
+
 export function canonicalRightsManifest(workflowRef, sources, workflowKind = "other") {
   const normalized = (sources || [])
     .map((source) => ({
@@ -97,9 +134,18 @@ export function canonicalRightsManifest(workflowRef, sources, workflowKind = "ot
       sourceKind: String(source.sourceKind || "unknown"),
       disposition: String(source.disposition || "review_required"),
       talentRecordIds: [...new Set(source.talentRecordIds || [])].sort(),
-      operations: [...new Set((source.operations || []).map((operation) =>
-        String(operation.classType || operation.class_type || "")
-      ).filter(Boolean))].sort().map((classType) => ({ classType })),
+      operations: [...new Map((source.operations || []).map((operation) => {
+        const classType = String(operation.classType || operation.class_type || "");
+        const sourceRole = String(operation.sourceRole || operation.source_role || "");
+        return [
+          `${classType}|${sourceRole}`,
+          { classType, ...(sourceRole ? { sourceRole } : {}) },
+        ];
+      }).filter(([, operation]) => Boolean(operation.classType))).values()].sort(
+        (left, right) => `${left.classType}|${left.sourceRole || ""}`.localeCompare(
+          `${right.classType}|${right.sourceRole || ""}`
+        )
+      ),
     }))
     .filter((source) => /^[a-f0-9]{64}$/.test(source.sourceRef))
     .sort((left, right) =>

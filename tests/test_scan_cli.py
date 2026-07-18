@@ -11,7 +11,7 @@ SEED = os.path.join(os.path.dirname(__file__), "..", "seed", "roster.json")
 def test_cli_reports_all_five_states_and_writes_packet(tmp_path):
     summary = run(FIXTURE, SEED, str(tmp_path))
     assert summary == {
-        "cleared": 2,
+        "cleared": 1,
         "needs_review": 1,
         "restricted": 1,
         "synthetic_unverified": 1,

@@ -6,6 +6,7 @@ import { app } from "../../scripts/app.js";
 import { mountPanel } from "./panel.js";
 import { el } from "./components.js";
 import { clearReticles } from "./canvas.js";
+import { cancelIdentityAnalysis } from "./identity-analysis.js";
 import { invalidateScan } from "./store.js";
 
 // Amber node identity (LiteGraph colors — hex only).
@@ -22,6 +23,7 @@ app.registerExtension({
     // ComfyUI has loaded/configured a graph. Results from the previous graph
     // must never remain actionable while a new graph is on canvas.
     clearReticles();
+    void cancelIdentityAnalysis({ remove: true });
     invalidateScan();
   },
 

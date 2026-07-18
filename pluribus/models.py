@@ -50,6 +50,12 @@ class PersonInstance:
     # Downstream operations performed on this person's likeness:
     # [{"node_id": str, "class_type": str}], ordered by node id.
     ops: list[dict] = field(default_factory=list)
+    # A source can feed several terminal outputs. Keep the original singular
+    # ids above for compatibility while exposing every graph occurrence for
+    # source-level UI and audit views.
+    output_node_ids: list[str] = field(default_factory=list)
+    source_node_ids: list[str] = field(default_factory=list)
+    occurrences: list[dict] = field(default_factory=list)
 
 
 @dataclass

@@ -5,6 +5,15 @@ description = "People, intended-use, and recipient-confirmation workflow inside 
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
 
+[project.optional-dependencies]
+# Kept optional to avoid forcing a large native wheel or a NumPy change into
+# every ComfyUI install. The panel detects this capability and keeps graph-only
+# source review available when the local vision backend is not installed.
+identity = [
+  "numpy>=1.24,<3",
+  "opencv-python-headless>=4.8,<5",
+]
+
 [project.urls]
 Homepage = "https://trypluribus.com/?src=comfyui"
 Repository = "https://github.com/trypluribus/comfyui-pluribus"

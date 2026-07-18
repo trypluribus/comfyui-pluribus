@@ -12,7 +12,7 @@ class PluribusSourceMarker:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "source_kind": (["reference", "lora", "prompt", "unknown"], {"default": "reference"}),
+                "source_kind": (["reference", "audio", "lora", "prompt", "unknown"], {"default": "reference"}),
                 "source_key": ("STRING", {"default": "", "multiline": False}),
                 "display_name": ("STRING", {"default": "", "multiline": False}),
                 "note": ("STRING", {"default": "", "multiline": True}),
