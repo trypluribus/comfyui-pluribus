@@ -1,0 +1,11 @@
+{
+  "name": "comfyui-pluribus-development",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test web/tests/contracts.test.mjs"
+  }
+}

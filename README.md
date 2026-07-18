@@ -15,19 +15,13 @@ A clean production install starts with no demo talent, no fixture permissions,
 and no pre-cleared people. Test fixtures still exist for automated development
 tests, but they are not loaded by the ComfyUI runtime.
 
-> **Release status:** `v0.4.0-rc.2` remains the production-rehearsed baseline.
-> The people-first local identity analysis and expanded multimodal scanning
-> documented here are unreleased development-branch features and are not in
-> that tag. On 2026-07-13, the rehearsal began from a clean public RC1
-> install. After RC1 exposed a false-offline timeout, the exact public RC2 tag
-> at commit `096571bc16b0d03f62dc469a0b0e6e68057651bb` replaced it in the same
-> isolated rehearsal state, recovered that state, and completed the remaining
-> production checks. The complete zero-state journey was not repeated solely
-> on RC2. See
-> [Your first project](docs/first-project.md) for the walkthrough and the exact
-> verification boundary. The stable `v0.4.0` tag remains on hold while the
-> documented hard final-tag gates remain open; pin it once the final tag is
-> published.
+> **Release status:** `v0.4.0-rc.2` is the supported, production-rehearsed
+> baseline. The default `main` branch is unreleased development code. Its
+> Registry-compatible package metadata reserves `0.4.0`, but that metadata is
+> not a stable tag, release, or permission to publish one. People-first local
+> identity analysis and expanded multimodal scanning are currently `main`-only. See the
+> [dated RC2 rehearsal record](docs/release-rehearsal-2026-07-13.md) for exact
+> evidence and open final-tag gates. The stable `v0.4.0` tag remains on hold.
 
 ## What the plugin does
 
@@ -55,20 +49,42 @@ The plugin does not generate a storyboard or character sheet. It groups the
 ComfyUI workflows that you create into one rights context so the people and use
 remain understandable across pre-production, production, and final review.
 
-## Install
+## Install the supported release
 
-Clone the plugin into the ComfyUI `custom_nodes` directory:
+Pin the supported release candidate in the ComfyUI `custom_nodes` directory:
 
 ```bash
 cd /path/to/ComfyUI/custom_nodes
-git clone https://github.com/trypluribus/comfyui-pluribus
+git clone --branch v0.4.0-rc.2 --depth 1 \
+  https://github.com/trypluribus/comfyui-pluribus
 ```
 
 Restart ComfyUI. The **Pluribus** tab appears in the sidebar rail. Older
 frontends without the sidebar-tab API get a floating **Pluribus** launcher in
 the lower-right corner.
 
-### Optional local identity analysis
+For a long-lived production install, pin `v0.4.0` only after that final tag is
+published and listed in the repository releases. A Comfy Registry listing is a
+separate distribution decision.
+
+### Evaluate unreleased `main`
+
+Use `main` only for development or explicit evaluation of unreleased features:
+
+```bash
+cd /path/to/ComfyUI/custom_nodes
+git clone --branch main --depth 1 \
+  https://github.com/trypluribus/comfyui-pluribus
+```
+
+Do not treat a `main` commit, the reserved `0.4.0` package metadata, or a
+successful source-sync PR as a versioned release. Tags, GitHub releases, and
+Registry publication require a separate release decision and clean-install
+verification.
+
+### Optional local identity analysis on `main`
+
+This capability is not part of the supported `v0.4.0-rc.2` tag.
 
 The graph scanner remains dependency-free. To turn source filenames into
 portrait crops and likely-person groups, install the optional vision backend
@@ -95,18 +111,6 @@ Run ComfyUI on loopback or behind authentication you trust. The plugin's
 same-origin `/pluribus/*` routes can read and mutate the paired workspace using
 the device token; exposing an otherwise unauthenticated ComfyUI server to a LAN
 or the public internet also exposes that local proxy surface.
-
-To reproduce the earlier production-rehearsed baseline without the unreleased
-identity and multimodal work, pin the RC2 tag explicitly:
-
-```bash
-git clone --branch v0.4.0-rc.2 --depth 1 \
-  https://github.com/trypluribus/comfyui-pluribus
-```
-
-For a long-lived production install, pin `v0.4.0` once that final tag is
-published and listed in the repository releases. A Comfy Registry listing is a
-separate distribution follow-up.
 
 If the plugin directory is read-only, set `PLURIBUS_DATA_DIR` to a private,
 writable directory before starting ComfyUI. Otherwise, the plugin tries its
@@ -189,9 +193,8 @@ again and recover the existing personal workspace and projects without creating
 another workspace. On the same ComfyUI installation, retained `bindings.json`
 also restores the private local workflow/source identities; deleting that file
 or moving to another machine does not recreate those local mappings from the
-server. The reconnect path was verified in production after deployed server
-commit `94e3840`; the reconnect correction was server-only, and the installed
-plugin remained the exact public `v0.4.0-rc.2` tag.
+server. See the [dated RC2 rehearsal record](docs/release-rehearsal-2026-07-13.md)
+for the production evidence behind this reconnect behavior.
 
 Create a project with a project name, real client/company, optional agency, and
 short production context. Then classify the current graph as one of:
@@ -315,10 +318,12 @@ Pluribus tracks two hashes for different purposes:
 Human-readable source labels are not part of the rights hash. Raw filenames,
 paths, prompts, node IDs, and graph JSON never enter the rights manifest.
 
-The production rehearsal verified both sides of this boundary: an unrelated
-storyboard marker-note edit preserved the current confirmation, while changing
-a source from **Review required** to **Not a person** created a new rights
-context and made the prior response display **Scope changed — request again**.
+An unrelated marker-note edit can change the graph hash while preserving the
+current confirmation. Changing a source from **Review required** to **Not a
+person** changes the rights manifest and makes the prior response display
+**Scope changed — request again**. The
+[dated RC2 rehearsal record](docs/release-rehearsal-2026-07-13.md) preserves the
+production evidence for both cases.
 
 ## Privacy and network boundary
 
@@ -357,12 +362,9 @@ data directory. Treat that directory as sensitive local application state.
 
 **Disconnect** removes the local token only after server-side revocation is
 confirmed, or after a `401` proves the token is already unusable. If Pluribus is
-offline, the token stays local so revocation can be retried. Production testing
-also verified this order: an initial disconnect revoked its credential; a later
-pairing recovered the existing owner workspace instead of creating a duplicate;
-the updated source disposition survived restart; and the final disconnect
-removed the connection secret while retaining private bindings and left all
-issued credentials revoked.
+offline, the token stays local so revocation can be retried. Private bindings
+are retained so a later pairing can recover the same local workflow/source
+identities.
 
 ## Limitations
 
@@ -395,11 +397,9 @@ issued credentials revoked.
 - The panel has no manual normalized AI-action override yet; marker-only graphs
   do not verify downstream action inference or a render-ready production path.
 - Link-only retry identity does not yet survive a request-dialog reload.
-- The production rehearsal used a returning authenticated email account that
-  created its first v0.4 workspace; a never-before-seen signup was not tested.
-- The production rehearsal used marker-only character-sheet and storyboard
-  workflows. It did not upload or generate real media, validate a render-ready
-  production graph, or validate downstream AI-action inference.
+
+For dated test coverage and known verification gaps, see the
+[RC2 rehearsal record](docs/release-rehearsal-2026-07-13.md).
 
 ## Compatibility with v0.3
 
@@ -427,7 +427,8 @@ ln -s "$(pwd)" /path/to/ComfyUI/custom_nodes/comfyui-pluribus
 The frontend is vanilla ES modules under `web/` and has no build step.
 
 ```bash
-python -m pytest -v
+python -m pip install -r requirements-test.txt
+PYTHONDONTWRITEBYTECODE=1 python -m pytest -v -p no:cacheprovider
 node --test web/tests/contracts.test.mjs
 ```
 
