@@ -1,5 +1,7 @@
 // Pure DOM builders — no state, no fetches. Everything returns elements.
 
+import { operationDefinition, operationLabel } from "./operation-registry.js";
+
 export function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
@@ -67,29 +69,33 @@ function initials(name) {
     .join("");
 }
 
-// Striped placeholder headshot, same aesthetic as the mockup's Headshot.
-export function avatar(person) {
+// Same-origin ComfyUI previews keep the source useful before Pluribus is
+// connected. Initials remain in place when a format cannot be previewed.
+export function avatar(person, media = null) {
   const hue = nameHue(person.name || person.source_key);
   const node = el("div", { class: "plb-avatar", text: initials(person.name) });
   node.style.background =
     `repeating-linear-gradient(135deg, rgba(255,255,255,0.04) 0 8px, transparent 8px 16px), ` +
     `linear-gradient(150deg, oklch(0.34 0.045 ${hue}), oklch(0.24 0.035 ${hue}))`;
+  if (media?.url) {
+    const preview = el(media.kind === "video" ? "video" : "img", {
+      class: "plb-avatar-media",
+      src: media.url,
+      alt: media.kind === "image" ? "Source preview" : null,
+      muted: media.kind === "video" ? "" : null,
+      playsinline: media.kind === "video" ? "" : null,
+      preload: media.kind === "video" ? "metadata" : null,
+    });
+    preview.muted = media.kind === "video";
+    preview.addEventListener("error", () => preview.remove());
+    node.append(preview);
+  }
   return node;
 }
 
-// class_type → friendly operation label. null = not worth a chip.
+// Non-rights graph plumbing kept here only for the technical source audit.
+// Rights-relevant labels come from the generated cross-runtime registry.
 const OP_LABELS = {
-  ReActorFaceSwap: "Face swap",
-  IPAdapter: "Face adapter",
-  IPAdapterAdvanced: "Face adapter",
-  IPAdapterApply: "Face adapter",
-  LoraLoader: "Identity LoRA",
-  LoraLoaderModelOnly: "Identity LoRA",
-  LoadImage: "Reference image",
-  GeminiImage2Node: "Reference image edit",
-  FluxKontextProImageNode: "Reference image edit",
-  KlingImage2VideoNode: "Image to video",
-  CLIPTextEncode: "Prompt",
   KSampler: "Sampler",
   KSamplerAdvanced: "Sampler",
   ImageUpscaleWithModel: "Upscale",
@@ -106,6 +112,7 @@ const OP_LABELS = {
 };
 
 export function labelForClass(classType) {
+  if (operationDefinition(classType)) return operationLabel(classType);
   if (classType in OP_LABELS) return OP_LABELS[classType];
   return classType.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
@@ -127,7 +134,7 @@ export function opsChips(person, onFocusNode) {
     return el(
       "div",
       {},
-      el("div", { class: "plb-ops-label", text: "Downstream graph nodes" }),
+      el("div", { class: "plb-ops-label", text: "Used for" }),
       el(
         "div",
         { class: "plb-ops" },
@@ -136,14 +143,13 @@ export function opsChips(person, onFocusNode) {
             "span",
             {
               class: "plb-chip plb-chip--focusable",
-              title: "Click to locate node",
+              title: "Click to locate this step",
               onclick: (event) => {
                 event.stopPropagation();
                 onFocusNode?.(op.node_id);
               },
             },
-            el("span", { text: labelForClass(op.class_type) }),
-            el("small", { text: `#${op.node_id}` })
+            el("span", { text: labelForClass(op.class_type) })
           )
         )
       )
@@ -154,7 +160,7 @@ export function opsChips(person, onFocusNode) {
   return el(
     "div",
     {},
-    el("div", { class: "plb-ops-label", text: "Downstream graph nodes" }),
+    el("div", { class: "plb-ops-label", text: "Used for" }),
     el("div", { class: "plb-ops" }, labels.map((label) => el("span", { class: "plb-chip", text: label })))
   );
 }
@@ -162,10 +168,17 @@ export function opsChips(person, onFocusNode) {
 // Proposed invite terms derived from supported graph operations.
 const CLEAR_STATEMENTS = {
   "Face swap": "Use of their face / likeness in this workflow",
-  "Face adapter": "Conditioning AI generation on their face",
-  "Identity LoRA": "Generation from a model trained on their likeness",
+  "Identity reference": "Conditioning AI generation on their face",
+  "Identity model": "Generation from a model trained on their likeness",
   "Reference image": "Use of their reference image as a generation source",
-  Prompt: "AI depiction directed by a text prompt",
+  "Performance video": "Use of their source video as a generation source",
+  "Voice or audio reference": "Use of their source audio / voice performance as a generation source",
+  "Reference image edit": "AI editing of their reference image",
+  "Multi-reference image generation": "Conditioning AI generation on their reference image / likeness",
+  "Image-to-video performance": "Animation of their likeness from image to video",
+  "Performance video edit": "AI editing of their source video",
+  "Multi-reference video generation": "Generation using their likeness, performance, or voice reference",
+  "Prompted likeness generation": "AI depiction directed by a text prompt",
 };
 
 export function clearStatements(person) {

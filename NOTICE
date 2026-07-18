@@ -6,3 +6,16 @@ This plugin is licensed under GPL-3.0-only (see LICENSE).
 Server-side Pluribus services, canonical workspace APIs, hosted confirmation workflows,
 marketplace mechanics, and Pluribus trademarks are not licensed by this
 plugin license.
+
+Optional local identity analysis uses OpenCV Python bindings and, only after an
+explicit user action, downloads checksum-pinned model files from OpenCV Zoo.
+The model files are not bundled with this plugin:
+
+- YuNet face detection model: MIT License
+  https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet
+- SFace face recognition model: Apache License 2.0
+  https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface
+
+Their respective license files and notices remain controlling for those model
+files. The installer records exact filenames and SHA-256 checksums and accepts
+downloads only from the pinned OpenCV repository host.

@@ -21,6 +21,44 @@ export function scanWorkflow(workflow, workflowName = "", workflowFingerprint = 
   });
 }
 
+// ── Local identity analysis ────────────────────────────────────────────
+
+export function startIdentityAnalysis(payload) {
+  return requestJson("/pluribus/identity/analyze", jsonInit("POST", payload));
+}
+
+export function getIdentityCapabilities() {
+  return requestJson("/pluribus/identity/capabilities");
+}
+
+export function installIdentityModels(modelId) {
+  return requestJson(
+    "/pluribus/identity/models/install",
+    jsonInit("POST", { modelId, confirm: true })
+  );
+}
+
+export function getIdentityAnalysisJob(jobId) {
+  return requestJson(`/pluribus/identity/jobs/${encodeURIComponent(jobId)}`);
+}
+
+export function deleteIdentityAnalysisJob(jobId) {
+  return requestJson(`/pluribus/identity/jobs/${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+  });
+}
+
+export function getIdentityLinks(jobId) {
+  return requestJson(`/pluribus/identity/jobs/${encodeURIComponent(jobId)}/links`);
+}
+
+export function saveIdentityLinks(jobId, links, baseRevision) {
+  return requestJson(
+    `/pluribus/identity/jobs/${encodeURIComponent(jobId)}/links`,
+    jsonInit("PUT", { baseRevision, links })
+  );
+}
+
 export async function getRoster() {
   const res = await fetch("/pluribus/roster");
   if (!res.ok) throw new Error(`/pluribus/roster failed with ${res.status}`);
@@ -180,5 +218,39 @@ export function resolveLocalSource(workflowRef, localSourceKey, sourceKind) {
   return requestJson(
     `/pluribus/workflows/${encodeURIComponent(workflowRef)}/sources/resolve`,
     jsonInit("POST", { localSourceKey, sourceKind })
+  );
+}
+
+export function getLocalPersonDrafts(workflowRef, sourceRef = "") {
+  const query = sourceRef ? `?sourceRef=${encodeURIComponent(sourceRef)}` : "";
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}/person-drafts${query}`
+  );
+}
+
+export function saveLocalPersonDraft(workflowRef, payload) {
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}/person-drafts`,
+    jsonInit("PUT", payload)
+  );
+}
+
+export function deleteLocalPersonDraft(workflowRef, draftId) {
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}/person-drafts/${encodeURIComponent(draftId)}`,
+    { method: "DELETE" }
+  );
+}
+
+export function getLocalSourceReviews(workflowRef) {
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}/source-reviews`
+  );
+}
+
+export function saveLocalSourceReview(workflowRef, sourceRef, state, sourceHash) {
+  return requestJson(
+    `/pluribus/workflows/${encodeURIComponent(workflowRef)}/source-reviews/${encodeURIComponent(sourceRef)}`,
+    jsonInit("PUT", { state, sourceHash })
   );
 }

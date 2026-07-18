@@ -1,5 +1,6 @@
 import { saveProjectUse } from "./api.js";
 import { button, el, metaLabel, toast } from "./components.js";
+import { requirePluribusConnection } from "./connect.js";
 import { scanMatchesCurrentWorkflow } from "./canvas.js";
 import { loadProjectContext } from "./project.js";
 import {
@@ -17,7 +18,16 @@ import {
 export function renderUseBrief(container) {
   const state = getState();
   if (!isWorkflowContextReady()) {
-    container.replaceChildren(empty("Find people in the current graph and finish syncing it before defining intended use."));
+    if (state.connection?.state !== "connected") {
+      container.replaceChildren(
+        empty(
+          "Connect when you're ready to save intended use and request permission.",
+          button("Connect to Pluribus", "primary", () => requirePluribusConnection())
+        )
+      );
+    } else {
+      container.replaceChildren(empty("Choose a project and link people before defining intended use."));
+    }
     return;
   }
   const current = currentScope();
@@ -302,6 +312,6 @@ function selectedOption(value, label, current) {
   return node;
 }
 
-function empty(message) {
-  return el("div", { class: "plb-empty", text: message });
+function empty(message, action = null) {
+  return el("div", { class: "plb-empty" }, el("div", { text: message }), action);
 }

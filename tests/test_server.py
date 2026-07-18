@@ -1,16 +1,26 @@
 import asyncio
+import hashlib
+import inspect
 import json
 import os
 
 import pytest
 
 from pluribus import remote
+from pluribus.bindings import BindingStore
 from pluribus.invites import (
     client_request_id_for_invite,
     read_actions,
     record_action,
 )
 from pluribus.server import register_routes
+from pluribus.identity_analyzers import AnalyzerStatus
+from pluribus.identity_service import (
+    IdentityAnalysisService,
+    IdentityCapacityError,
+    IdentityConflictError,
+)
+from pluribus.storage import write_private_json
 
 SEED = os.path.join(os.path.dirname(__file__), "..", "seed", "roster.json")
 
@@ -35,6 +45,9 @@ class FakeRoutes:
     def put(self, path):
         return self._register("PUT", path)
 
+    def delete(self, path):
+        return self._register("DELETE", path)
+
 
 class FakePromptServer:
     def __init__(self):
@@ -42,10 +55,22 @@ class FakePromptServer:
 
 
 class FakeRequest:
-    def __init__(self, body, match_info=None, query=None):
+    def __init__(
+        self,
+        body,
+        match_info=None,
+        query=None,
+        *,
+        headers=None,
+        content_type="application/json",
+        host="127.0.0.1:8188",
+    ):
         self.body = body
         self.match_info = match_info or {}
         self.query = query or {}
+        self.headers = headers or {}
+        self.content_type = content_type
+        self.host = host
 
     async def json(self):
         return self.body
@@ -57,6 +82,178 @@ def run(coro):
 
 def response_json(response):
     return json.loads(response.body.decode("utf-8"))
+
+
+def test_protected_routes_reject_cross_site_requests_and_non_json_bodies(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=SEED,
+        actions_path=str(tmp_path / "actions.json"),
+    )
+    handler = prompt_server.routes.handlers[("POST", "/pluribus/scan")]
+
+    cross_site = run(
+        handler(
+            FakeRequest(
+                {"workflow": {}},
+                headers={
+                    "Origin": "https://attacker.example",
+                    "Sec-Fetch-Site": "cross-site",
+                },
+                content_type="text/plain",
+            )
+        )
+    )
+    assert cross_site.status == 403
+    assert response_json(cross_site)["state"] == "forbidden"
+
+    wrong_type = run(
+        handler(FakeRequest({"workflow": {}}, content_type="text/plain"))
+    )
+    assert wrong_type.status == 400
+    assert "application/json" in response_json(wrong_type)["message"]
+
+    same_origin = run(
+        handler(
+            FakeRequest(
+                {"workflow": {}},
+                headers={"Origin": "http://127.0.0.1:8188"},
+            )
+        )
+    )
+    assert same_origin.status == 200
+
+
+def test_every_state_changing_route_uses_the_same_origin_guard():
+    source = inspect.getsource(register_routes)
+    assert "@routes.post(" not in source
+    assert "@routes.put(" not in source
+    assert "@routes.delete(" not in source
+
+
+def test_identity_json_responses_are_never_cached(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=SEED,
+        actions_path=str(tmp_path / "actions.json"),
+    )
+    handler = prompt_server.routes.handlers[
+        ("GET", "/pluribus/identity/capabilities")
+    ]
+
+    response = run(handler(FakeRequest(None)))
+
+    assert response.status == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["Vary"] == "Origin"
+
+
+def test_identity_queue_capacity_maps_to_http_429(tmp_path):
+    class BusyIdentityService:
+        async def start_job(self, _body):
+            raise IdentityCapacityError("Too many local identity analyses are queued.")
+
+    bindings_path = str(tmp_path / "bindings.json")
+    bindings = BindingStore(bindings_path)
+    workflow = bindings.resolve_workflow("busy-workflow")
+    source = bindings.resolve_source(
+        workflow["workflowRef"], "portrait.jpg", "reference"
+    )
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=SEED,
+        actions_path=str(tmp_path / "actions.json"),
+        bindings_path=bindings_path,
+        identity_service=BusyIdentityService(),
+    )
+    handler = prompt_server.routes.handlers[("POST", "/pluribus/identity/analyze")]
+
+    response = run(
+        handler(
+            FakeRequest(
+                {
+                    "workflowRef": workflow["workflowRef"],
+                    "sources": [
+                        {
+                            "sourceRef": source["sourceRef"],
+                            "sourceKey": "portrait.jpg",
+                            "sourceKind": "reference",
+                        }
+                    ],
+                }
+            )
+        )
+    )
+
+    assert response.status == 429
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_identity_link_revision_conflict_maps_to_http_409(tmp_path):
+    class ConflictingIdentityService:
+        def put_links(self, _job_id, _body):
+            raise IdentityConflictError(
+                "Identity link revision conflict. Reload before saving."
+            )
+
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=SEED,
+        actions_path=str(tmp_path / "actions.json"),
+        identity_service=ConflictingIdentityService(),
+    )
+    handler = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/identity/jobs/{job_id}/links")
+    ]
+
+    response = run(
+        handler(
+            FakeRequest(
+                {"baseRevision": 1, "links": []},
+                match_info={"job_id": "identity-job"},
+            )
+        )
+    )
+
+    assert response.status == 409
+    assert "reload" in response_json(response)["message"].lower()
+    assert response.headers["Cache-Control"] == "no-store"
+
+
+def test_identity_link_delete_revision_conflict_maps_to_http_409(tmp_path):
+    class ConflictingIdentityService:
+        def delete_links(self, _job_id, _body):
+            raise IdentityConflictError(
+                "Identity link revision conflict. Reload before clearing."
+            )
+
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=SEED,
+        actions_path=str(tmp_path / "actions.json"),
+        identity_service=ConflictingIdentityService(),
+    )
+    handler = prompt_server.routes.handlers[
+        ("DELETE", "/pluribus/identity/jobs/{job_id}/links")
+    ]
+
+    response = run(
+        handler(
+            FakeRequest(
+                {"baseRevision": 1},
+                match_info={"job_id": "identity-job"},
+            )
+        )
+    )
+
+    assert response.status == 409
+    assert "reload" in response_json(response)["message"].lower()
+    assert response.headers["Cache-Control"] == "no-store"
 
 
 def test_action_route_preserves_explicit_client_request_id(tmp_path, monkeypatch):
@@ -405,6 +602,285 @@ def test_binding_routes_mint_opaque_refs_and_associate_project(tmp_path):
     assert "alex-reference" not in json.dumps(source)
 
 
+def test_local_person_draft_routes_are_private_and_support_source_filtering(tmp_path):
+    prompt_server = FakePromptServer()
+    bindings_path = str(tmp_path / "bindings.json")
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        connection_path=str(tmp_path / "connection.json"),
+        bindings_path=bindings_path,
+    )
+    resolve = prompt_server.routes.handlers[("POST", "/pluribus/workflows/resolve")]
+    workflow_ref = response_json(
+        run(resolve(FakeRequest({"localWorkflowKey": "private-workflow"})))
+    )["workflowRef"]
+    source_resolve = prompt_server.routes.handlers[
+        ("POST", "/pluribus/workflows/{workflow_ref}/sources/resolve")
+    ]
+    source_a = response_json(
+        run(
+            source_resolve(
+                FakeRequest(
+                    {"localSourceKey": "/private/alex-a.png", "sourceKind": "reference"},
+                    {"workflow_ref": workflow_ref},
+                )
+            )
+        )
+    )["sourceRef"]
+    source_b = response_json(
+        run(
+            source_resolve(
+                FakeRequest(
+                    {"localSourceKey": "/private/alex-b.png", "sourceKind": "reference"},
+                    {"workflow_ref": workflow_ref},
+                )
+            )
+        )
+    )["sourceRef"]
+    put = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/workflows/{workflow_ref}/person-drafts")
+    ]
+    get = prompt_server.routes.handlers[
+        ("GET", "/pluribus/workflows/{workflow_ref}/person-drafts")
+    ]
+    delete = prompt_server.routes.handlers[
+        (
+            "DELETE",
+            "/pluribus/workflows/{workflow_ref}/person-drafts/{draft_id}",
+        )
+    ]
+
+    saved_response = run(
+        put(
+            FakeRequest(
+                {
+                    "canonicalPersonId": "person_123",
+                    "displayName": "Alex Person",
+                    "role": "Actor",
+                    "talentEmail": "alex@example.com",
+                    "representative": {"role": "agent", "name": "Avery Agent"},
+                    "notes": "Local note",
+                    "sourceRefs": [source_a, source_b],
+                    "workflow": {"private": True},
+                    "imagePath": "/private/alex.png",
+                },
+                {"workflow_ref": workflow_ref},
+            )
+        )
+    )
+    saved = response_json(saved_response)["draft"]
+    filtered_response = run(
+        get(
+            FakeRequest(
+                None,
+                {"workflow_ref": workflow_ref},
+                {"sourceRef": source_b},
+            )
+        )
+    )
+
+    assert saved_response.status == 200
+    assert set(saved) == {
+        "draftId",
+        "canonicalPersonId",
+        "displayName",
+        "role",
+        "talentEmail",
+        "representative",
+        "notes",
+        "sourceRefs",
+    }
+    assert response_json(filtered_response) == {"drafts": [saved]}
+    private_text = (tmp_path / "bindings.json").read_text(encoding="utf-8")
+    assert "/private" not in private_text
+    assert '"workflow"' not in private_text
+    assert "imagePath" not in private_text
+
+    deleted_response = run(
+        delete(
+            FakeRequest(
+                None,
+                {"workflow_ref": workflow_ref, "draft_id": saved["draftId"]},
+            )
+        )
+    )
+    assert response_json(deleted_response) == {
+        "deleted": True,
+        "draftId": saved["draftId"],
+    }
+    assert response_json(
+        run(get(FakeRequest(None, {"workflow_ref": workflow_ref})))
+    ) == {"drafts": []}
+
+
+@pytest.mark.parametrize("linked_identifier", ["draftId", "canonicalPersonId"])
+def test_person_draft_delete_rejects_persisted_identity_link_after_restart(
+    tmp_path, linked_identifier
+):
+    bindings_path = str(tmp_path / "bindings.json")
+    bindings = BindingStore(bindings_path)
+    workflow = bindings.resolve_workflow("restart-safe-person-delete")
+    source = bindings.resolve_source(
+        workflow["workflowRef"], "portrait.png", "reference"
+    )
+    draft = bindings.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "canonicalPersonId": "person_123",
+            "displayName": "Alex Person",
+            "sourceRefs": [source["sourceRef"]],
+        },
+    )
+
+    state_dir = tmp_path / "state"
+    before_restart = IdentityAnalysisService(str(state_dir), analyzer=object())
+    workflow_key = hashlib.sha256(
+        f"identity-links:{workflow['workflowRef']}".encode("utf-8")
+    ).hexdigest()
+    write_private_json(
+        os.path.join(before_restart.links_dir, f"{workflow_key}.json"),
+        {
+            "schemaVersion": 3,
+            "analysisJobId": "persisted-job",
+            "revision": 1,
+            "links": [
+                {
+                    "candidateId": "candidate-1",
+                    "personId": draft[linked_identifier],
+                    "state": "confirmed",
+                    "occurrenceIds": ["occurrence-1"],
+                }
+            ],
+        },
+    )
+
+    restarted_identity = IdentityAnalysisService(str(state_dir), analyzer=object())
+    assert restarted_identity._jobs == {}
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        bindings_path=bindings_path,
+        identity_service=restarted_identity,
+    )
+    delete = prompt_server.routes.handlers[
+        (
+            "DELETE",
+            "/pluribus/workflows/{workflow_ref}/person-drafts/{draft_id}",
+        )
+    ]
+
+    response = run(
+        delete(
+            FakeRequest(
+                None,
+                {
+                    "workflow_ref": workflow["workflowRef"],
+                    "draft_id": draft["draftId"],
+                },
+            )
+        )
+    )
+
+    assert response.status == 409
+    assert response.headers["Cache-Control"] == "no-store"
+    assert "visual identity assignments" in response_json(response)["message"].lower()
+    assert bindings.list_person_drafts(workflow["workflowRef"]) == [draft]
+
+
+def test_local_person_draft_route_rejects_unminted_source(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        bindings_path=str(tmp_path / "bindings.json"),
+    )
+    resolve = prompt_server.routes.handlers[("POST", "/pluribus/workflows/resolve")]
+    workflow_ref = response_json(
+        run(resolve(FakeRequest({"localWorkflowKey": "private-workflow"})))
+    )["workflowRef"]
+    put = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/workflows/{workflow_ref}/person-drafts")
+    ]
+
+    response = run(
+        put(
+            FakeRequest(
+                {"displayName": "Alex", "sourceRefs": ["a" * 64]},
+                {"workflow_ref": workflow_ref},
+            )
+        )
+    )
+
+    assert response.status == 400
+    assert "not minted" in response_json(response)["message"]
+
+
+def test_local_source_review_routes_persist_without_a_pluribus_connection(tmp_path):
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        bindings_path=str(tmp_path / "bindings.json"),
+    )
+    resolve = prompt_server.routes.handlers[("POST", "/pluribus/workflows/resolve")]
+    workflow_ref = response_json(
+        run(resolve(FakeRequest({"localWorkflowKey": "private-workflow"})))
+    )["workflowRef"]
+    source_resolve = prompt_server.routes.handlers[
+        ("POST", "/pluribus/workflows/{workflow_ref}/sources/resolve")
+    ]
+    source_ref = response_json(
+        run(
+            source_resolve(
+                FakeRequest(
+                    {"localSourceKey": "nightmare-shadow.png", "sourceKind": "reference"},
+                    {"workflow_ref": workflow_ref},
+                )
+            )
+        )
+    )["sourceRef"]
+    put = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/workflows/{workflow_ref}/source-reviews/{source_ref}")
+    ]
+    get = prompt_server.routes.handlers[
+        ("GET", "/pluribus/workflows/{workflow_ref}/source-reviews")
+    ]
+
+    saved = run(
+        put(
+            FakeRequest(
+                {"state": "not_person", "sourceHash": "a" * 64},
+                {"workflow_ref": workflow_ref, "source_ref": source_ref},
+            )
+        )
+    )
+    assert saved.status == 200
+    assert response_json(saved) == {
+        "review": {
+            "sourceRef": source_ref,
+            "state": "not_person",
+            "sourceHash": "a" * 64,
+        }
+    }
+    assert response_json(
+        run(get(FakeRequest(None, {"workflow_ref": workflow_ref})))
+    ) == {
+        "reviews": [
+            {
+                "sourceRef": source_ref,
+                "state": "not_person",
+                "sourceHash": "a" * 64,
+            }
+        ]
+    }
+
+
 def test_source_links_route_sends_only_opaque_manifest(tmp_path, monkeypatch):
     prompt_server = FakePromptServer()
     captured = {}
@@ -502,3 +978,139 @@ def test_workspace_project_routes_are_registered(tmp_path):
         ("POST", "/pluribus/projects/{project_id}/confirmation-requests"),
     }
     assert expected <= set(prompt_server.routes.handlers)
+
+
+def test_identity_routes_return_visual_review_contract_without_vectors(tmp_path):
+    class UnavailableAnalyzer:
+        analyzer_id = "test_identity"
+        model_version = "test-identity-v1"
+
+        def status(self):
+            return AnalyzerStatus(
+                False,
+                self.analyzer_id,
+                self.model_version,
+                (
+                    {
+                        "issueId": "identity_models_unavailable",
+                        "severity": "warning",
+                        "title": "Models unavailable",
+                        "description": "Install local models.",
+                    },
+                ),
+            )
+
+        def analyze(self, *_args):
+            raise AssertionError("unavailable analyzer must not run")
+
+    media_root = tmp_path / "input"
+    media_root.mkdir()
+    image_path = media_root / "portrait.jpg"
+    image_path.write_bytes(b"local-image-bytes")
+    identity = IdentityAnalysisService(
+        str(tmp_path / "state"),
+        analyzer=UnavailableAnalyzer(),
+        media_roots=[str(media_root)],
+    )
+    bindings_path = str(tmp_path / "bindings.json")
+    bindings = BindingStore(bindings_path)
+    workflow = bindings.resolve_workflow("little-flower-local")
+    source = bindings.resolve_source(
+        workflow["workflowRef"], "portrait.jpg", "reference"
+    )
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        bindings_path=bindings_path,
+        identity_service=identity,
+    )
+    analyze = prompt_server.routes.handlers[("POST", "/pluribus/identity/analyze")]
+
+    async def scenario():
+        response = await analyze(
+            FakeRequest(
+                {
+                    "workflowName": "Little Flower",
+                    "workflowFingerprint": "a" * 64,
+                    "workflowRef": workflow["workflowRef"],
+                    "sources": [
+                        {
+                            "sourceRef": source["sourceRef"],
+                            "sourceKey": "portrait.jpg",
+                            "sourceKind": "reference",
+                        }
+                    ],
+                }
+            )
+        )
+        started = response_json(response)
+        for _ in range(200):
+            payload = identity.get_job(started["jobId"])
+            if payload["state"] in {"completed", "failed", "canceled"}:
+                return response, started, payload
+            await asyncio.sleep(0.01)
+        raise AssertionError("identity route job did not finish")
+
+    response, started, payload = run(scenario())
+
+    assert response.status == 202
+    assert started["state"] in {"queued", "running"}
+    assert started["jobId"] == payload["jobId"]
+    assert payload["state"] == "completed"
+    assert set(payload) >= {
+        "jobId",
+        "coverage",
+        "candidates",
+        "occurrences",
+        "issues",
+        "evidence",
+    }
+    assert payload["coverage"]["totalSources"] == 1
+    assert payload["coverage"]["imageCount"] == 1
+    assert '"embedding":' not in json.dumps(payload).lower()
+    mismatched_source = run(
+        analyze(
+            FakeRequest(
+                {
+                    "workflowRef": workflow["workflowRef"],
+                    "sources": [
+                        {
+                            "sourceRef": "c" * 64,
+                            "sourceKey": "portrait.jpg",
+                            "sourceKind": "reference",
+                        }
+                    ],
+                }
+            )
+        )
+    )
+    assert mismatched_source.status == 400
+    assert "minted" in response_json(mismatched_source)["message"]
+    assert {
+        ("GET", "/pluribus/identity/capabilities"),
+        ("POST", "/pluribus/identity/models/install"),
+        ("GET", "/pluribus/identity/jobs/{job_id}"),
+        ("POST", "/pluribus/identity/jobs/{job_id}/cancel"),
+        ("DELETE", "/pluribus/identity/jobs/{job_id}"),
+        ("GET", "/pluribus/identity/jobs/{job_id}/evidence"),
+        ("GET", "/pluribus/identity/jobs/{job_id}/evidence/{artifact_id}"),
+        ("GET", "/pluribus/identity/jobs/{job_id}/links"),
+        ("PUT", "/pluribus/identity/jobs/{job_id}/links"),
+        ("DELETE", "/pluribus/identity/jobs/{job_id}/links"),
+    } <= set(prompt_server.routes.handlers)
+
+    artifact = tmp_path / "private-face.png"
+    artifact.write_bytes(b"private-face-evidence")
+    identity.artifact_path = lambda _job_id, _artifact_id: str(artifact)
+    evidence_artifact = prompt_server.routes.handlers[
+        ("GET", "/pluribus/identity/jobs/{job_id}/evidence/{artifact_id}")
+    ]
+    artifact_response = run(
+        evidence_artifact(
+            FakeRequest({}, {"job_id": "job-local", "artifact_id": "face.png"})
+        )
+    )
+
+    assert artifact_response.headers["Cache-Control"] == "no-store"

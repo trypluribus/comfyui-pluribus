@@ -1,0 +1,567 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "sd_xl_base_1.0.safetensors"
+    },
+    "_meta": {
+      "title": "SDXL base"
+    }
+  },
+  "2": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "lora_name": "alhassan_lrx26_sdxl_webcam_v0.safetensors",
+      "strength_model": 0.72,
+      "strength_clip": 0.72,
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Identity LoRA · alhassan_lrx26 self-likeness"
+    }
+  },
+  "4": {
+    "class_type": "IPAdapterUnifiedLoader",
+    "inputs": {
+      "preset": "PLUS FACE (portraits)",
+      "model": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "IPAdapter · PLUS FACE"
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "IMG_0003.jpeg",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "Identity reference A · neutral headshot"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "IMG_2505.jpeg",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "Identity reference B · location / wardrobe photo"
+    }
+  },
+  "7": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "33",
+        0
+      ],
+      "image2": [
+        "34",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Two photos of one performer → conditioning batch"
+    }
+  },
+  "8": {
+    "class_type": "IPAdapterAdvanced",
+    "inputs": {
+      "weight": 0.76,
+      "weight_type": "linear",
+      "combine_embeds": "average",
+      "start_at": 0.0,
+      "end_at": 0.82,
+      "embeds_scaling": "K+V",
+      "model": [
+        "4",
+        0
+      ],
+      "ipadapter": [
+        "4",
+        1
+      ],
+      "image": [
+        "37",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Multi-photo IPAdapter identity conditioning"
+    }
+  },
+  "9": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "alhassan_lrx26, a man in his early 30s watching a tense movie on a deep blue couch in a warm modern living room, expressive reaction, premium streaming-service campaign, cinematic practical lighting, natural skin texture, crisp face, believable hands, 35mm lens, shallow depth of field",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Hero performer prompt"
+    }
+  },
+  "10": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "duplicate person, merged faces, deformed hands, extra fingers, extra limbs, warped eyes, waxy skin, text, watermark, logo, low resolution, motion blur",
+      "clip": [
+        "2",
+        1
+      ]
+    },
+    "_meta": {
+      "title": "Negative prompt"
+    }
+  },
+  "11": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1216,
+      "height": 704,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "16:9 campaign keyframe"
+    }
+  },
+  "12": {
+    "class_type": "KSampler",
+    "inputs": {
+      "seed": 20260717,
+      "steps": 30,
+      "cfg": 6.2,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0,
+      "model": [
+        "8",
+        0
+      ],
+      "positive": [
+        "9",
+        0
+      ],
+      "negative": [
+        "10",
+        0
+      ],
+      "latent_image": [
+        "11",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Generate blended ensemble keyframe"
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "Decode base ensemble"
+    }
+  },
+  "14": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "rights_stress/01_blended_cast",
+      "images": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Checkpoint · blended cast keyframe"
+    }
+  },
+  "15": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "TYLER_FACE_MASTER_A.jpg",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "Tyler · facial likeness reference"
+    }
+  },
+  "16": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "TYLER_BODY_GYM_A.jpg",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "Tyler · body / physical-performance reference"
+    }
+  },
+  "17": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "TYLER_TATTOO_CONDITIONING_V02_3840x2160.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "Tyler · tattoo / identifying-feature sheet"
+    }
+  },
+  "18": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Use image 1 as the exact living-room composition. Add the same male performer shown in reference images 2, 3 and 4 as a friend on the right side of the couch. Reference 2 controls face, reference 3 controls build and pose, and reference 4 controls tattoo placement. Preserve the first performer from image 1. Photoreal premium campaign.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 20260717,
+      "watermark": false,
+      "model.images.image_1": [
+        "13",
+        0
+      ],
+      "model.images.image_2": [
+        "15",
+        0
+      ],
+      "model.images.image_3": [
+        "16",
+        0
+      ],
+      "model.images.image_4": [
+        "17",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Multi-reference cast composite · same performer, 3 asset keys"
+    }
+  },
+  "19": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "rights_stress/02_multiref_cast",
+      "images": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Checkpoint · multi-reference cast composite"
+    }
+  },
+  "20": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a symmetrical wide master shot of both friends on the blue couch. Keep both faces, bodies, tattoos and wardrobe identity consistent. Add a glowing television off camera and warm practical lamps. Premium cinematic streaming campaign.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 1717,
+      "prompt_upsampling": false,
+      "input_image": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot A · wide couch master"
+    }
+  },
+  "21": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Create a tight 85mm reaction two-shot favoring the first performer while the second remains soft and partially cropped at the frame edge. Preserve both identities and exact wardrobe. Tense, funny surprise, cinematic warm-blue contrast.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 1818,
+      "prompt_upsampling": false,
+      "input_image": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot B · tight reaction (only some cast visible)"
+    }
+  },
+  "22": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Create an over-the-shoulder shot from behind the tattooed performer toward his friend, with a fictional silver streaming remote prominent in the foreground. Preserve the tattooed performer's arm tattoos, both faces and wardrobe continuity. Cinematic commercial lighting.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 1919,
+      "prompt_upsampling": false,
+      "input_image": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot C · over-shoulder product reveal"
+    }
+  },
+  "23": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "rights_stress/03A_wide",
+      "images": [
+        "20",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot A output"
+    }
+  },
+  "24": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "rights_stress/03B_reaction",
+      "images": [
+        "21",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot B output"
+    }
+  },
+  "25": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "rights_stress/03C_product",
+      "images": [
+        "22",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Shot C output"
+    }
+  },
+  "26": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Slow push-in as both friends react to the television: the left performer leans forward and the tattooed performer laughs and lifts the remote. Preserve both faces, bodies, tattoos and wardrobe details. Natural overlapping performance, no cuts.",
+      "negative_prompt": "identity drift, face morph, extra people, warped hands, tattoo changes, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "20",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "I2V · animate the wide ensemble"
+    }
+  },
+  "27": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/rights_stress/04_generated_ensemble",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "26",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Preview · generated ensemble performance"
+    }
+  },
+  "28": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower/lf_fight_s02.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "Source performance · multi-person clip, cast unresolved"
+    }
+  },
+  "29": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Transform the physical performance into a glossy streaming-service reaction insert set in the same warm living room as the campaign. Retain the original timing, gestures, facial expressions and camera movement, but replace wardrobe and environment.",
+      "seed": 2727,
+      "public_figure_threshold": "low",
+      "video": [
+        "28",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "V2V · retain motion, replace scene and styling"
+    }
+  },
+  "30": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/rights_stress/05_source_performance_v2v",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "29",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Preview · transformed source performance"
+    }
+  },
+  "31": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Create a continuous five-second campaign moment with the two friends from reference images 1-3 on the blue couch. Begin on the wide master, move through the tight reaction, and land on the over-shoulder product reveal. Use reference video 1 for timing and group reaction energy. Preserve both faces, bodies, tattoos, wardrobe and distinct performance. Generate subtle room tone and overlapping nonverbal reactions only; no intelligible dialogue.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 3131,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "20",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "21",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "22",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "29",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "FINAL · 3 shot refs + inherited source performance"
+    }
+  },
+  "32": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/rights_stress/06_final_multisource",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "31",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "FINAL OUTPUT · rights lineage is deliberately ambiguous"
+    }
+  },
+  "33": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center",
+      "image": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Normalize headshot for IPAdapter batch"
+    }
+  },
+  "34": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center",
+      "image": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Normalize location photo for IPAdapter batch"
+    }
+  },
+  "35": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "hero-cast-final_00002_.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "Understory · derived character sheet of the same performer"
+    }
+  },
+  "36": {
+    "class_type": "ImageScale",
+    "inputs": {
+      "upscale_method": "lanczos",
+      "width": 1024,
+      "height": 1024,
+      "crop": "center",
+      "image": [
+        "35",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Normalize character sheet for IPAdapter batch"
+    }
+  },
+  "37": {
+    "class_type": "ImageBatch",
+    "inputs": {
+      "image1": [
+        "7",
+        0
+      ],
+      "image2": [
+        "36",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Add derived character sheet to identity batch"
+    }
+  }
+}

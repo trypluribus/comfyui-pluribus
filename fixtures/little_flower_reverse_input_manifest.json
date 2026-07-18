@@ -1,0 +1,286 @@
+{
+  "fixture_manifest_version": 1,
+  "artifact_type": "sanitized_little_flower_fixture_inputs",
+  "workflow_input_count": 43,
+  "cast": [
+    {
+      "role": "Layla",
+      "asset": "characters/nisreen_salem_as_layla_identity_evidence.png",
+      "evidence_type": "face_crop_occurrences",
+      "identity_state": "suggested_role_mapping_needs_producer_confirmation"
+    },
+    {
+      "role": "Dalia",
+      "asset": "characters/newsha_sadri_as_dalia_identity_evidence.png",
+      "evidence_type": "face_crop_occurrences",
+      "identity_state": "suggested_role_mapping_needs_producer_confirmation"
+    },
+    {
+      "role": "Amo Hassan",
+      "asset": "characters/salim_kassam_as_amo_hassan_identity_evidence.png",
+      "evidence_type": "face_crop_occurrences",
+      "identity_state": "suggested_role_mapping_needs_producer_confirmation"
+    },
+    {
+      "role": "Mama",
+      "asset": "characters/sawsan_mustafa_as_mama_identity_evidence.png",
+      "evidence_type": "face_crop_occurrences",
+      "identity_state": "suggested_role_mapping_needs_producer_confirmation"
+    },
+    {
+      "role": "Nightmare Shadow",
+      "asset": "characters/nightmare_shadow_body_evidence.png",
+      "evidence_type": "full_body_role_context",
+      "identity_state": "manual_role_context_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 01",
+      "asset": "characters/party_visual_candidate_01_1eff330d.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 02",
+      "asset": "characters/party_visual_candidate_02_09acf838.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 03",
+      "asset": "characters/party_visual_candidate_03_3ff1823a.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 04",
+      "asset": "characters/party_visual_candidate_04_43e06b6c.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 05",
+      "asset": "characters/party_visual_candidate_05_4e9b5d15.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 06",
+      "asset": "characters/party_visual_candidate_06_6091116d.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 07",
+      "asset": "characters/party_visual_candidate_07_7b22fca0.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 08",
+      "asset": "characters/party_visual_candidate_08_7fceae18.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 09",
+      "asset": "characters/party_visual_candidate_09_853ed922.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 10",
+      "asset": "characters/party_visual_candidate_10_866d5430.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 11",
+      "asset": "characters/party_visual_candidate_11_a7daded1.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    },
+    {
+      "role": "Party visual candidate 12",
+      "asset": "characters/party_visual_candidate_12_fb3c795e.png",
+      "evidence_type": "anonymous_face_cluster",
+      "identity_state": "anonymous_visual_candidate_needs_producer_confirmation"
+    }
+  ],
+  "location_reference": "references/location_bible.png",
+  "prop_reference": "references/prop_and_wardrobe_bible.png",
+  "scenes": [
+    {
+      "scene_id": "SC01",
+      "title": "Nightmare and wake-up",
+      "roles": [
+        "Layla",
+        "Nightmare Shadow"
+      ],
+      "start_seconds": 0.0,
+      "end_seconds": 36.0,
+      "generation_prompt": "Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts."
+    },
+    {
+      "scene_id": "SC02",
+      "title": "Morning conversation with Mama",
+      "roles": [
+        "Layla",
+        "Mama"
+      ],
+      "start_seconds": 36.0,
+      "end_seconds": 176.843,
+      "generation_prompt": "Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions."
+    },
+    {
+      "scene_id": "SC03",
+      "title": "Dream book and Dalia's visit",
+      "roles": [
+        "Layla",
+        "Dalia"
+      ],
+      "start_seconds": 176.843,
+      "end_seconds": 347.681,
+      "generation_prompt": "Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders."
+    },
+    {
+      "scene_id": "SC04",
+      "title": "Market visit with Amo Hassan",
+      "roles": [
+        "Layla",
+        "Amo Hassan"
+      ],
+      "start_seconds": 347.681,
+      "end_seconds": 413.955,
+      "generation_prompt": "Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion."
+    },
+    {
+      "scene_id": "SC05",
+      "title": "Second nightmare",
+      "roles": [
+        "Layla",
+        "Nightmare Shadow"
+      ],
+      "start_seconds": 413.955,
+      "end_seconds": 463.838,
+      "generation_prompt": "A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening."
+    },
+    {
+      "scene_id": "SC06",
+      "title": "Neighborhood walk with Dalia",
+      "roles": [
+        "Layla",
+        "Dalia"
+      ],
+      "start_seconds": 463.838,
+      "end_seconds": 640.89,
+      "generation_prompt": "Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight."
+    },
+    {
+      "scene_id": "SC07",
+      "title": "Mama's counsel",
+      "roles": [
+        "Layla",
+        "Mama"
+      ],
+      "start_seconds": 640.89,
+      "end_seconds": 780.863,
+      "generation_prompt": "Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance."
+    },
+    {
+      "scene_id": "SC08",
+      "title": "Garden party and bounce-house fight",
+      "roles": [
+        "Layla",
+        "Amo Hassan",
+        "Featured Extras"
+      ],
+      "start_seconds": 780.863,
+      "end_seconds": 908.366,
+      "generation_prompt": "Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles."
+    }
+  ],
+  "storyboards": [
+    {
+      "scene_id": "SC01",
+      "asset": "storyboards/SC01_nightmare_and_wake_storyboard.png",
+      "shot_count": 16
+    },
+    {
+      "scene_id": "SC02",
+      "asset": "storyboards/SC02_morning_with_mama_storyboard.png",
+      "shot_count": 19
+    },
+    {
+      "scene_id": "SC03",
+      "asset": "storyboards/SC03_dream_book_and_dalia_storyboard.png",
+      "shot_count": 23
+    },
+    {
+      "scene_id": "SC04",
+      "asset": "storyboards/SC04_market_with_amo_hassan_storyboard.png",
+      "shot_count": 12
+    },
+    {
+      "scene_id": "SC05",
+      "asset": "storyboards/SC05_second_nightmare_storyboard.png",
+      "shot_count": 17
+    },
+    {
+      "scene_id": "SC06",
+      "asset": "storyboards/SC06_neighborhood_walk_storyboard.png",
+      "shot_count": 11
+    },
+    {
+      "scene_id": "SC07",
+      "asset": "storyboards/SC07_mama_counsel_storyboard.png",
+      "shot_count": 11
+    },
+    {
+      "scene_id": "SC08",
+      "asset": "storyboards/SC08_garden_party_fight_storyboard.png",
+      "shot_count": 37
+    }
+  ],
+  "scene_media": [
+    {
+      "scene_id": "SC01",
+      "motion_proxy": "motion/SC01_nightmare_and_wake_motion_proxy.mp4",
+      "temp_audio": "audio/SC01_nightmare_and_wake_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC02",
+      "motion_proxy": "motion/SC02_morning_with_mama_motion_proxy.mp4",
+      "temp_audio": "audio/SC02_morning_with_mama_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC03",
+      "motion_proxy": "motion/SC03_dream_book_and_dalia_motion_proxy.mp4",
+      "temp_audio": "audio/SC03_dream_book_and_dalia_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC04",
+      "motion_proxy": "motion/SC04_market_with_amo_hassan_motion_proxy.mp4",
+      "temp_audio": "audio/SC04_market_with_amo_hassan_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC05",
+      "motion_proxy": "motion/SC05_second_nightmare_motion_proxy.mp4",
+      "temp_audio": "audio/SC05_second_nightmare_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC06",
+      "motion_proxy": "motion/SC06_neighborhood_walk_motion_proxy.mp4",
+      "temp_audio": "audio/SC06_neighborhood_walk_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC07",
+      "motion_proxy": "motion/SC07_mama_counsel_motion_proxy.mp4",
+      "temp_audio": "audio/SC07_mama_counsel_temp_mix.m4a"
+    },
+    {
+      "scene_id": "SC08",
+      "motion_proxy": "motion/SC08_garden_party_fight_motion_proxy.mp4",
+      "temp_audio": "audio/SC08_garden_party_fight_temp_mix.m4a"
+    }
+  ]
+}

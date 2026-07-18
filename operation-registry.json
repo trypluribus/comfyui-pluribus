@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "operations": [
+    {
+      "classType": "ReActorFaceSwap",
+      "label": "Face swap",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "edit" }]
+    },
+    {
+      "classType": "IPAdapter",
+      "label": "Identity reference",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "generate" }]
+    },
+    {
+      "classType": "IPAdapterAdvanced",
+      "label": "Identity reference",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "generate" }]
+    },
+    {
+      "classType": "IPAdapterApply",
+      "label": "Identity reference",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "generate" }]
+    },
+    {
+      "classType": "LoraLoader",
+      "label": "Identity model",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "digital_replica", "action": "generate" }]
+    },
+    {
+      "classType": "LoraLoaderModelOnly",
+      "label": "Identity model",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "digital_replica", "action": "generate" }]
+    },
+    {
+      "classType": "LoadImage",
+      "label": "Reference image",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "biometric_input", "action": "process" }]
+    },
+    {
+      "classType": "LoadVideo",
+      "label": "Performance video",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "biometric_input", "action": "process" }]
+    },
+    {
+      "classType": "LoadAudio",
+      "label": "Voice or audio reference",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "voice", "action": "process" }]
+    },
+    {
+      "classType": "GeminiImage2Node",
+      "label": "Reference image edit",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "edit" }]
+    },
+    {
+      "classType": "FluxKontextProImageNode",
+      "label": "Reference image edit",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "edit" }]
+    },
+    {
+      "classType": "ByteDanceSeedreamNodeV2",
+      "label": "Multi-reference image generation",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "face", "action": "generate" }]
+    },
+    {
+      "classType": "KlingImage2VideoNode",
+      "label": "Image-to-video performance",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "synthetic_performance", "action": "render" }]
+    },
+    {
+      "classType": "RunwayAleph2VideoToVideoNode",
+      "label": "Performance video edit",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "synthetic_performance", "action": "edit" }]
+    },
+    {
+      "classType": "ByteDance2ReferenceNode",
+      "label": "Multi-reference video generation",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "synthetic_performance", "action": "render" }],
+      "actionsBySourceRole": {
+        "reference_audio": [{ "modality": "voice", "action": "process" }],
+        "reference_image": [{ "modality": "face", "action": "generate" }],
+        "reference_video": [{ "modality": "full_body_performance", "action": "edit" }]
+      }
+    },
+    {
+      "classType": "CLIPTextEncode",
+      "label": "Prompted likeness generation",
+      "rightsRelevant": true,
+      "actions": [{ "modality": "nil", "action": "generate" }]
+    }
+  ]
+}

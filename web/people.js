@@ -1,17 +1,19 @@
 import { avatar, button, el, metaLabel, pluribusMark, statusAxes } from "./components.js";
+import { draftPersonCards, renderDraftPeople } from "./person-drafts.js";
 import { internalStateForPerson, openConfirmationDialog, requestStateForPerson } from "./request-confirmation.js";
 import { isWorkflowContextReady, projectPeople, projectSourceLinks } from "./store.js";
 import { isUseBriefReady } from "./use-brief.js";
 
 export function renderPeople(container) {
   if (!isWorkflowContextReady()) {
+    if (renderDraftPeople(container)) return;
     container.replaceChildren(
       el(
         "div",
         { class: "plb-empty" },
         pluribusMark(20),
-        metaLabel("Current workflow required", true),
-        el("div", { text: "Find people in this graph before reviewing or contacting project people." })
+        metaLabel("No people added yet", true),
+        el("div", { text: "Open Sources and add details for everyone who appears." })
       )
     );
     return;
@@ -28,7 +30,8 @@ export function renderPeople(container) {
   const people = projectPeople().filter((person) =>
     linkedIds.has(person.id || person.talentRecordId)
   );
-  if (!people.length) {
+  const draftCards = draftPersonCards();
+  if (!people.length && !draftCards.length) {
     container.replaceChildren(
       el(
         "div",
@@ -46,7 +49,8 @@ export function renderPeople(container) {
     el(
       "div",
       { class: "plb-list" },
-      people.map((person) => personCard(person))
+      people.map((person) => personCard(person)),
+      draftCards
     )
   );
 }

@@ -1,0 +1,2608 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__nisreen_salem_as_layla_identity_evidence.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Layla · suggested role mapping needs producer confirmation"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__newsha_sadri_as_dalia_identity_evidence.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Dalia · suggested role mapping needs producer confirmation"
+    }
+  },
+  "3": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__salim_kassam_as_amo_hassan_identity_evidence.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Amo Hassan · suggested role mapping needs producer confirmation"
+    }
+  },
+  "4": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__sawsan_mustafa_as_mama_identity_evidence.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Mama · suggested role mapping needs producer confirmation"
+    }
+  },
+  "5": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__nightmare_shadow_body_evidence.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Nightmare Shadow · manual role context needs producer confirmation"
+    }
+  },
+  "6": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_01_1eff330d.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 01 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "7": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_02_09acf838.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 02 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "8": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_03_3ff1823a.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 03 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "9": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_04_43e06b6c.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 04 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "10": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_05_4e9b5d15.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 05 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "11": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_06_6091116d.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 06 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "12": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_07_7b22fca0.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 07 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "13": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_08_7fceae18.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 08 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "14": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_09_853ed922.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 09 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "15": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_10_866d5430.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 10 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "16": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_11_a7daded1.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 11 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "17": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__party_visual_candidate_12_fb3c795e.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "IDENTITY EVIDENCE · Party visual candidate 12 · anonymous visual candidate needs producer confirmation"
+    }
+  },
+  "18": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__location_bible.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "VISUAL BIBLE · locations"
+    }
+  },
+  "19": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__prop_and_wardrobe_bible.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "VISUAL BIBLE · props + wardrobe"
+    }
+  },
+  "20": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Build a neutral garden-party crowd continuity board from these anonymous visual candidates. Keep each person distinct; do not infer names, relationships, consent or clearance. This is a producer-review reference, not an identity claim.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 3900,
+      "watermark": false,
+      "model.images.image_1": [
+        "6",
+        0
+      ],
+      "model.images.image_2": [
+        "7",
+        0
+      ],
+      "model.images.image_3": [
+        "8",
+        0
+      ],
+      "model.images.image_4": [
+        "9",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 CROWD BATCH 01 · anonymous candidates"
+    }
+  },
+  "21": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Build a neutral garden-party crowd continuity board from these anonymous visual candidates. Keep each person distinct; do not infer names, relationships, consent or clearance. This is a producer-review reference, not an identity claim.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 3904,
+      "watermark": false,
+      "model.images.image_1": [
+        "10",
+        0
+      ],
+      "model.images.image_2": [
+        "11",
+        0
+      ],
+      "model.images.image_3": [
+        "12",
+        0
+      ],
+      "model.images.image_4": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 CROWD BATCH 02 · anonymous candidates"
+    }
+  },
+  "22": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Build a neutral garden-party crowd continuity board from these anonymous visual candidates. Keep each person distinct; do not infer names, relationships, consent or clearance. This is a producer-review reference, not an identity claim.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 3908,
+      "watermark": false,
+      "model.images.image_1": [
+        "14",
+        0
+      ],
+      "model.images.image_2": [
+        "15",
+        0
+      ],
+      "model.images.image_3": [
+        "16",
+        0
+      ],
+      "model.images.image_4": [
+        "17",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 CROWD BATCH 03 · anonymous candidates"
+    }
+  },
+  "23": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Combine these anonymous crowd batches into one SC08 continuity reference. Preserve all distinct candidate appearances. Do not attach credited names or rights states.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 3999,
+      "watermark": false,
+      "model.images.image_1": [
+        "20",
+        0
+      ],
+      "model.images.image_2": [
+        "21",
+        0
+      ],
+      "model.images.image_3": [
+        "22",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 CROWD MASTER · anonymous producer-review composite"
+    }
+  },
+  "24": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC01_nightmare_and_wake_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC01 STORYBOARD · 16 reconstructed shots"
+    }
+  },
+  "25": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC01_nightmare_and_wake_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC01 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "26": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC01_nightmare_and_wake_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC01 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "27": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC01, Nightmare and wake-up. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Nightmare Shadow identity-evidence anchor; image 4 is the prop/wardrobe bible. Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4100,
+      "watermark": false,
+      "model.images.image_1": [
+        "24",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "5",
+        0
+      ],
+      "model.images.image_4": [
+        "19",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "28": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5100,
+      "prompt_upsampling": false,
+      "input_image": [
+        "27",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SHOT A · 24mm wide master"
+    }
+  },
+  "29": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5101,
+      "prompt_upsampling": false,
+      "input_image": [
+        "27",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SHOT B · 50mm performance coverage"
+    }
+  },
+  "30": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5102,
+      "prompt_upsampling": false,
+      "input_image": [
+        "27",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "31": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC01 storyboard frame with a slow creeping dolly-in followed by a sharp macro insert. Use this physical beat: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "28",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 I2V SHOT A · camera + performance"
+    }
+  },
+  "32": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC01/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "31",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SHOT A OUTPUT"
+    }
+  },
+  "33": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC01 storyboard frame with a slow creeping dolly-in followed by a sharp macro insert. Use this physical beat: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "29",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 I2V SHOT B · camera + performance"
+    }
+  },
+  "34": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC01/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "33",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SHOT B OUTPUT"
+    }
+  },
+  "35": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC01 storyboard frame with a slow creeping dolly-in followed by a sharp macro insert. Use this physical beat: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "30",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 I2V SHOT C · camera + performance"
+    }
+  },
+  "36": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC01/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "35",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 SHOT C OUTPUT"
+    }
+  },
+  "37": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC01 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6100,
+      "public_figure_threshold": "low",
+      "video": [
+        "25",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 V2V · recorded motion + performance transfer"
+    }
+  },
+  "38": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC01 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Cinematic nocturnal psychological drama. Layla sits at her vanity in a red shirt during a storm; a shadow presence approaches through macro inserts of toys, scissors and the mirror before she wakes abruptly. Deep blue night, warm practical lamp, slow dolly and sudden insert cuts.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7100,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "28",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "29",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "30",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "37",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "26",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "39": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC01/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "38",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC01 FINAL SCENE OUTPUT"
+    }
+  },
+  "40": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC02_morning_with_mama_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC02 STORYBOARD · 19 reconstructed shots"
+    }
+  },
+  "41": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC02_morning_with_mama_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC02 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "42": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC02_morning_with_mama_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC02 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "43": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC02, Morning conversation with Mama. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Mama identity-evidence anchor; image 4 is the location bible. Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4101,
+      "watermark": false,
+      "model.images.image_1": [
+        "40",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "4",
+        0
+      ],
+      "model.images.image_4": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "44": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5110,
+      "prompt_upsampling": false,
+      "input_image": [
+        "43",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SHOT A · 24mm wide master"
+    }
+  },
+  "45": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5111,
+      "prompt_upsampling": false,
+      "input_image": [
+        "43",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SHOT B · 50mm performance coverage"
+    }
+  },
+  "46": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5112,
+      "prompt_upsampling": false,
+      "input_image": [
+        "43",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "47": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC02 storyboard frame with a gentle handheld push-in with natural breathing drift. Use this physical beat: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "44",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 I2V SHOT A · camera + performance"
+    }
+  },
+  "48": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC02/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "47",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SHOT A OUTPUT"
+    }
+  },
+  "49": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC02 storyboard frame with a gentle handheld push-in with natural breathing drift. Use this physical beat: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "45",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 I2V SHOT B · camera + performance"
+    }
+  },
+  "50": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC02/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "49",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SHOT B OUTPUT"
+    }
+  },
+  "51": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC02 storyboard frame with a gentle handheld push-in with natural breathing drift. Use this physical beat: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "46",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 I2V SHOT C · camera + performance"
+    }
+  },
+  "52": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC02/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "51",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 SHOT C OUTPUT"
+    }
+  },
+  "53": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC02 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6101,
+      "public_figure_threshold": "low",
+      "video": [
+        "41",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 V2V · recorded motion + performance transfer"
+    }
+  },
+  "54": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC02 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Naturalistic family drama. Layla in a red T-shirt recounts the dream to Mama in a beige hijab while they move between the kitchen and sitting area. Morning window light, intimate shot-reverse-shot, gentle handheld camera and restrained expressions.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7101,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "44",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "45",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "46",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "53",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "42",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "55": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC02/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "54",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC02 FINAL SCENE OUTPUT"
+    }
+  },
+  "56": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC03_dream_book_and_dalia_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC03 STORYBOARD · 23 reconstructed shots"
+    }
+  },
+  "57": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC03_dream_book_and_dalia_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC03 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "58": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC03_dream_book_and_dalia_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC03 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "59": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC03, Dream book and Dalia's visit. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Dalia identity-evidence anchor; image 4 is the prop/wardrobe bible. Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4102,
+      "watermark": false,
+      "model.images.image_1": [
+        "56",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "2",
+        0
+      ],
+      "model.images.image_4": [
+        "19",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "60": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5120,
+      "prompt_upsampling": false,
+      "input_image": [
+        "59",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SHOT A · 24mm wide master"
+    }
+  },
+  "61": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5121,
+      "prompt_upsampling": false,
+      "input_image": [
+        "59",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SHOT B · 50mm performance coverage"
+    }
+  },
+  "62": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5122,
+      "prompt_upsampling": false,
+      "input_image": [
+        "59",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "63": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC03 storyboard frame with a measured slider move across the tea table. Use this physical beat: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "60",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 I2V SHOT A · camera + performance"
+    }
+  },
+  "64": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC03/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "63",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SHOT A OUTPUT"
+    }
+  },
+  "65": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC03 storyboard frame with a measured slider move across the tea table. Use this physical beat: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "61",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 I2V SHOT B · camera + performance"
+    }
+  },
+  "66": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC03/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "65",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SHOT B OUTPUT"
+    }
+  },
+  "67": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC03 storyboard frame with a measured slider move across the tea table. Use this physical beat: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "62",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 I2V SHOT C · camera + performance"
+    }
+  },
+  "68": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC03/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "67",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 SHOT C OUTPUT"
+    }
+  },
+  "69": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC03 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6102,
+      "public_figure_threshold": "low",
+      "video": [
+        "57",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 V2V · recorded motion + performance transfer"
+    }
+  },
+  "70": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC03 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Warm domestic two-hander. Layla studies a dream-interpretation page before Dalia arrives; they drink tea at a kitchen table with oranges and discuss the dream. Maintain both faces, wardrobe continuity and eyelines across wides, singles and over-shoulders.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7102,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "60",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "61",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "62",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "69",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "58",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "71": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC03/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "70",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC03 FINAL SCENE OUTPUT"
+    }
+  },
+  "72": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC04_market_with_amo_hassan_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC04 STORYBOARD · 12 reconstructed shots"
+    }
+  },
+  "73": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC04_market_with_amo_hassan_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC04 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "74": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC04_market_with_amo_hassan_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC04 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "75": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC04, Market visit with Amo Hassan. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Amo Hassan identity-evidence anchor; image 4 is the location bible. Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4103,
+      "watermark": false,
+      "model.images.image_1": [
+        "72",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "3",
+        0
+      ],
+      "model.images.image_4": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "76": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5130,
+      "prompt_upsampling": false,
+      "input_image": [
+        "75",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SHOT A · 24mm wide master"
+    }
+  },
+  "77": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5131,
+      "prompt_upsampling": false,
+      "input_image": [
+        "75",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SHOT B · 50mm performance coverage"
+    }
+  },
+  "78": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5132,
+      "prompt_upsampling": false,
+      "input_image": [
+        "75",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "79": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC04 storyboard frame with a observational aisle tracking move. Use this physical beat: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "76",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 I2V SHOT A · camera + performance"
+    }
+  },
+  "80": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC04/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "79",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SHOT A OUTPUT"
+    }
+  },
+  "81": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC04 storyboard frame with a observational aisle tracking move. Use this physical beat: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "77",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 I2V SHOT B · camera + performance"
+    }
+  },
+  "82": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC04/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "81",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SHOT B OUTPUT"
+    }
+  },
+  "83": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC04 storyboard frame with a observational aisle tracking move. Use this physical beat: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "78",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 I2V SHOT C · camera + performance"
+    }
+  },
+  "84": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC04/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "83",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 SHOT C OUTPUT"
+    }
+  },
+  "85": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC04 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6103,
+      "public_figure_threshold": "low",
+      "video": [
+        "73",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 V2V · recorded motion + performance transfer"
+    }
+  },
+  "86": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC04 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Observational market sequence. Layla wears a dark teal outer layer and moves through fluorescent grocery aisles while Amo Hassan works nearby. Slow tracking, shelf inserts, practical store light and grounded documentary motion.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7103,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "76",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "77",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "78",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "85",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "74",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "87": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC04/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "86",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC04 FINAL SCENE OUTPUT"
+    }
+  },
+  "88": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC05_second_nightmare_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC05 STORYBOARD · 17 reconstructed shots"
+    }
+  },
+  "89": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC05_second_nightmare_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC05 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "90": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC05_second_nightmare_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC05 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "91": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC05, Second nightmare. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Nightmare Shadow identity-evidence anchor; image 4 is the prop/wardrobe bible. A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4104,
+      "watermark": false,
+      "model.images.image_1": [
+        "88",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "5",
+        0
+      ],
+      "model.images.image_4": [
+        "19",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "92": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5140,
+      "prompt_upsampling": false,
+      "input_image": [
+        "91",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SHOT A · 24mm wide master"
+    }
+  },
+  "93": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5141,
+      "prompt_upsampling": false,
+      "input_image": [
+        "91",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SHOT B · 50mm performance coverage"
+    }
+  },
+  "94": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5142,
+      "prompt_upsampling": false,
+      "input_image": [
+        "91",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "95": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC05 storyboard frame with a oppressive slow push followed by a reactive handheld snap. Use this physical beat: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "92",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 I2V SHOT A · camera + performance"
+    }
+  },
+  "96": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC05/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "95",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SHOT A OUTPUT"
+    }
+  },
+  "97": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC05 storyboard frame with a oppressive slow push followed by a reactive handheld snap. Use this physical beat: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "93",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 I2V SHOT B · camera + performance"
+    }
+  },
+  "98": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC05/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "97",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SHOT B OUTPUT"
+    }
+  },
+  "99": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC05 storyboard frame with a oppressive slow push followed by a reactive handheld snap. Use this physical beat: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "94",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 I2V SHOT C · camera + performance"
+    }
+  },
+  "100": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC05/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "99",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 SHOT C OUTPUT"
+    }
+  },
+  "101": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC05 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6104,
+      "public_figure_threshold": "low",
+      "video": [
+        "89",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 V2V · recorded motion + performance transfer"
+    }
+  },
+  "102": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC05 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: A second nightmare in Layla's bedroom. Red and blue practical lighting, fragmented objects, oppressive shadow movement, close detail shots and an abrupt frightened wake-up. Preserve the same bedroom geography and character identity from the opening.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7104,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "92",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "93",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "94",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "101",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "90",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "103": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC05/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "102",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC05 FINAL SCENE OUTPUT"
+    }
+  },
+  "104": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC06_neighborhood_walk_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC06 STORYBOARD · 11 reconstructed shots"
+    }
+  },
+  "105": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC06_neighborhood_walk_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC06 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "106": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC06_neighborhood_walk_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC06 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "107": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC06, Neighborhood walk with Dalia. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Dalia identity-evidence anchor; image 4 is the location bible. Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4105,
+      "watermark": false,
+      "model.images.image_1": [
+        "104",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "2",
+        0
+      ],
+      "model.images.image_4": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "108": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5150,
+      "prompt_upsampling": false,
+      "input_image": [
+        "107",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SHOT A · 24mm wide master"
+    }
+  },
+  "109": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5151,
+      "prompt_upsampling": false,
+      "input_image": [
+        "107",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SHOT B · 50mm performance coverage"
+    }
+  },
+  "110": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5152,
+      "prompt_upsampling": false,
+      "input_image": [
+        "107",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "111": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC06 storyboard frame with a side-by-side handheld walk-and-talk tracking. Use this physical beat: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "108",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 I2V SHOT A · camera + performance"
+    }
+  },
+  "112": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC06/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "111",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SHOT A OUTPUT"
+    }
+  },
+  "113": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC06 storyboard frame with a side-by-side handheld walk-and-talk tracking. Use this physical beat: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "109",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 I2V SHOT B · camera + performance"
+    }
+  },
+  "114": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC06/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "113",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SHOT B OUTPUT"
+    }
+  },
+  "115": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC06 storyboard frame with a side-by-side handheld walk-and-talk tracking. Use this physical beat: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "110",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 I2V SHOT C · camera + performance"
+    }
+  },
+  "116": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC06/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "115",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 SHOT C OUTPUT"
+    }
+  },
+  "117": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC06 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6105,
+      "public_figure_threshold": "low",
+      "video": [
+        "105",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 V2V · recorded motion + performance transfer"
+    }
+  },
+  "118": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC06 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Day exterior dialogue scene. Layla in a red sweater walks through a suburban neighborhood with Dalia in a gray striped sweater; the conversation turns tense. Reactive handheld tracking, alternating profiles and close singles, overcast daylight.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7105,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "108",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "109",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "110",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "117",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "106",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "119": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC06/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "118",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC06 FINAL SCENE OUTPUT"
+    }
+  },
+  "120": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC07_mama_counsel_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC07 STORYBOARD · 11 reconstructed shots"
+    }
+  },
+  "121": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC07_mama_counsel_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC07 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "122": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC07_mama_counsel_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC07 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "123": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC07, Mama's counsel. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Mama identity-evidence anchor; image 4 is the location bible. Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4106,
+      "watermark": false,
+      "model.images.image_1": [
+        "120",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "4",
+        0
+      ],
+      "model.images.image_4": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "124": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5160,
+      "prompt_upsampling": false,
+      "input_image": [
+        "123",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SHOT A · 24mm wide master"
+    }
+  },
+  "125": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5161,
+      "prompt_upsampling": false,
+      "input_image": [
+        "123",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SHOT B · 50mm performance coverage"
+    }
+  },
+  "126": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5162,
+      "prompt_upsampling": false,
+      "input_image": [
+        "123",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "127": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC07 storyboard frame with a nearly locked intimate push-in. Use this physical beat: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "124",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 I2V SHOT A · camera + performance"
+    }
+  },
+  "128": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC07/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "127",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SHOT A OUTPUT"
+    }
+  },
+  "129": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC07 storyboard frame with a nearly locked intimate push-in. Use this physical beat: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "125",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 I2V SHOT B · camera + performance"
+    }
+  },
+  "130": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC07/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "129",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SHOT B OUTPUT"
+    }
+  },
+  "131": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC07 storyboard frame with a nearly locked intimate push-in. Use this physical beat: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "126",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 I2V SHOT C · camera + performance"
+    }
+  },
+  "132": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC07/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "131",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 SHOT C OUTPUT"
+    }
+  },
+  "133": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC07 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6106,
+      "public_figure_threshold": "low",
+      "video": [
+        "121",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 V2V · recorded motion + performance transfer"
+    }
+  },
+  "134": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC07 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Intimate living-room conversation. Mama now wears a blue hijab and counsels Layla about dreams and faith. Calm locked compositions, soft window light, close shot-reverse-shot and gentle physical reassurance.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7106,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "124",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "125",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "126",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "133",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "122",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "135": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC07/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "134",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC07 FINAL SCENE OUTPUT"
+    }
+  },
+  "136": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "little_flower_reverse__SC08_garden_party_fight_storyboard.png",
+      "upload": "image"
+    },
+    "_meta": {
+      "title": "SC08 STORYBOARD · 37 reconstructed shots"
+    }
+  },
+  "137": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "little_flower_reverse__SC08_garden_party_fight_motion_proxy.mp4",
+      "upload": "file"
+    },
+    "_meta": {
+      "title": "SC08 MOTION REFERENCE · recorded performances"
+    }
+  },
+  "138": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "little_flower_reverse__SC08_garden_party_fight_temp_mix.m4a"
+    },
+    "_meta": {
+      "title": "SC08 TEMP AUDIO · dialogue / voices / music / ambience"
+    }
+  },
+  "139": {
+    "class_type": "ByteDanceSeedreamNodeV2",
+    "inputs": {
+      "prompt": "Photorealistic cinematic previsualization for SC08, Garden party and bounce-house fight. image 1 is the reconstructed storyboard; image 2 is the Layla identity-evidence anchor; image 3 is the Amo Hassan identity-evidence anchor; image 4 is the anonymous party-candidate continuity master. Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles. Build one approved 16:9 scene-master frame. Preserve the producer-confirmed character appearances, wardrobe, lighting direction and location geography across later shots. Do not treat visual similarity or a credit label as rights clearance.",
+      "model": "seedream 5.0 lite",
+      "model.size_preset": "(2K) 2848x1600 (16:9)",
+      "model.width": 2048,
+      "model.height": 2048,
+      "model.max_images": 4,
+      "model.fail_on_partial": false,
+      "seed": 4107,
+      "watermark": false,
+      "model.images.image_1": [
+        "136",
+        0
+      ],
+      "model.images.image_2": [
+        "1",
+        0
+      ],
+      "model.images.image_3": [
+        "3",
+        0
+      ],
+      "model.images.image_4": [
+        "23",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SCENE MASTER · multi-reference continuity lock"
+    }
+  },
+  "140": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe the approved scene master as a 24mm wide establishing/master shot. Preserve every character, wardrobe detail, prop, eyeline and location feature. Maintain the established light and a clear physical geography. Sequence context: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5170,
+      "prompt_upsampling": false,
+      "input_image": [
+        "139",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SHOT A · 24mm wide master"
+    }
+  },
+  "141": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as a 50mm medium performance shot favoring the speaking or acting character while retaining the other scene participants at the correct eyeline. Preserve identity and wardrobe exactly; natural cinematic depth of field. Sequence context: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5171,
+      "prompt_upsampling": false,
+      "input_image": [
+        "139",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SHOT B · 50mm performance coverage"
+    }
+  },
+  "142": {
+    "class_type": "FluxKontextProImageNode",
+    "inputs": {
+      "prompt": "Reframe as an 85mm close reaction, insert or over-shoulder drawn from the storyboard. A person may be cropped or soft, but preserve every contributing identity, gesture, hand, prop and wardrobe detail. Sequence context: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles.",
+      "aspect_ratio": "16:9",
+      "guidance": 3.0,
+      "steps": 50,
+      "seed": 5172,
+      "prompt_upsampling": false,
+      "input_image": [
+        "139",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SHOT C · 85mm insert / over-shoulder"
+    }
+  },
+  "143": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC08 storyboard frame with a energetic reactive handheld movement with crowd whip-pans. Use this physical beat: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "140",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 I2V SHOT A · camera + performance"
+    }
+  },
+  "144": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC08/shot_A",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "143",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SHOT A OUTPUT"
+    }
+  },
+  "145": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC08 storyboard frame with a energetic reactive handheld movement with crowd whip-pans. Use this physical beat: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "141",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 I2V SHOT B · camera + performance"
+    }
+  },
+  "146": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC08/shot_B",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "145",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SHOT B OUTPUT"
+    }
+  },
+  "147": {
+    "class_type": "KlingImage2VideoNode",
+    "inputs": {
+      "prompt": "Animate this locked SC08 storyboard frame with a energetic reactive handheld movement with crowd whip-pans. Use this physical beat: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles. Preserve all distinct faces, bodies, wardrobe, hand actions and screen direction. One continuous five-second shot with no cut.",
+      "negative_prompt": "identity drift, face morph, wardrobe changes, extra people, missing people, warped hands, broken eyelines, jump cuts, text, watermark",
+      "model_name": "kling-v2-5-turbo",
+      "cfg_scale": 0.8,
+      "mode": "pro",
+      "aspect_ratio": "16:9",
+      "duration": "5",
+      "start_frame": [
+        "142",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 I2V SHOT C · camera + performance"
+    }
+  },
+  "148": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC08/shot_C",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "147",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 SHOT C OUTPUT"
+    }
+  },
+  "149": {
+    "class_type": "RunwayAleph2VideoToVideoNode",
+    "inputs": {
+      "prompt": "Re-render the recorded SC08 motion reference as the approved scene design. Retain original timing, blocking, gestures, facial performance, dialogue pacing, eyelines and camera motion, while matching the reconstructed cast, wardrobe, lighting and location established in the scene master.",
+      "seed": 6107,
+      "public_figure_threshold": "low",
+      "video": [
+        "137",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 V2V · recorded motion + performance transfer"
+    }
+  },
+  "150": {
+    "class_type": "ByteDance2ReferenceNode",
+    "inputs": {
+      "model": "Seedance 2.0 Fast",
+      "model.prompt": "Build the approved SC08 sequence from reference images 1-3, moving from wide master to performance coverage to close insert. Reference video 1 controls the original actors' blocking, gestures, facial timing and camera rhythm. Reference audio 1 controls dialogue, voice identity, timing, music and room tone. Maintain cast and continuity throughout. Scene brief: Lively garden birthday party with food, balloons and a bounce house. Layla changes to a black top; Amo Hassan and Layla wear oversized inflatable boxing gloves while a large family crowd reacts. Escalating handheld coverage, crowd inserts, comedic action and continuity across intercut angles.",
+      "model.resolution": "480p",
+      "model.ratio": "adaptive",
+      "model.duration": 5,
+      "model.generate_audio": true,
+      "model.auto_downscale": true,
+      "model.auto_upscale": false,
+      "seed": 7107,
+      "watermark": false,
+      "model.reference_images.image_1": [
+        "140",
+        0
+      ],
+      "model.reference_images.image_2": [
+        "141",
+        0
+      ],
+      "model.reference_images.image_3": [
+        "142",
+        0
+      ],
+      "model.reference_videos.video_1": [
+        "149",
+        0
+      ],
+      "model.reference_audios.audio_1": [
+        "138",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 FINAL SCENE · stills + motion + temp audio"
+    }
+  },
+  "151": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "filename_prefix": "video/little_flower_reverse/SC08/final_scene",
+      "format": "auto",
+      "codec": "auto",
+      "video": [
+        "150",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "SC08 FINAL SCENE OUTPUT"
+    }
+  }
+}

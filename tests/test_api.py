@@ -109,6 +109,28 @@ def test_scan_payload_excludes_incomplete_marker_and_returns_local_issue():
     assert out["issues"][0]["code"] == "incomplete_source_marker"
 
 
+def test_marker_only_payload_has_no_output_occurrence():
+    api = {
+        "30": {
+            "class_type": "PluribusSourceMarker",
+            "inputs": {
+                "source_kind": "reference",
+                "source_key": "theo-reference.png",
+                "display_name": "Theo Park",
+                "note": "Reference annotation only.",
+            },
+        }
+    }
+
+    person = scan_payload(api, _engine())["persons"][0]
+
+    assert person["output_node_id"] == "30"
+    assert person["source_node_id"] == "30"
+    assert person["output_node_ids"] == []
+    assert person["source_node_ids"] == ["30"]
+    assert person["occurrences"] == []
+
+
 def test_replace_payload_wraps_updated_workflow():
     api = {"1": {"class_type": "LoadImage", "inputs": {"image": "elena_ref.png"}}}
     out = replace_payload({"workflow": api, "source_key": "elena_ref.png", "new_asset_key": "sarah_ref.png"})
@@ -153,6 +175,136 @@ def test_scan_payload_includes_source_node_id():
     }
     person = scan_payload(api, _engine())["persons"][0]
     assert person["source_node_id"] == "1"
+
+
+def test_scan_payload_exposes_grouped_source_occurrences_and_legacy_ids():
+    api = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "actor.png"}},
+        "2": {"class_type": "FluxKontextProImageNode", "inputs": {"input_image": ["1", 0]}},
+        "3": {"class_type": "FluxKontextProImageNode", "inputs": {"input_image": ["1", 0]}},
+        "5": {"class_type": "SaveImage", "inputs": {"images": ["2", 0]}},
+        "6": {"class_type": "SaveImage", "inputs": {"images": ["3", 0]}},
+    }
+
+    out = scan_payload(api, _engine())
+
+    assert len(out["persons"]) == 1
+    person = out["persons"][0]
+    assert person["output_node_id"] == "5"
+    assert person["source_node_id"] == "1"
+    assert person["output_node_ids"] == ["5", "6"]
+    assert person["source_node_ids"] == ["1"]
+    assert [occurrence["output_node_id"] for occurrence in person["occurrences"]] == [
+        "5",
+        "6",
+    ]
+    assert [operation["node_id"] for operation in person["ops"]] == ["1", "2", "3"]
+    assert out["summary"]["unidentified"] == 1
+
+
+def test_scan_payload_derives_video_reference_scope_for_runway_edit():
+    api = {
+        "10": {"class_type": "LoadVideo", "inputs": {"file": "lf_night_s02.mp4"}},
+        "11": {
+            "class_type": "RunwayAleph2VideoToVideoNode",
+            "inputs": {"video": ["10", 0], "prompt": "restyle the girl's scene"},
+        },
+        "12": {"class_type": "SaveVideo", "inputs": {"video": ["11", 0]}},
+    }
+
+    person = scan_payload(api, _engine())["persons"][0]
+
+    assert person["source_kind"] == "reference"
+    assert person["source_key"] == "lf_night_s02.mp4"
+    assert person["scope_statements"] == [
+        "Use of their source video as a generation source",
+        "AI editing of their source video",
+    ]
+
+
+def test_scan_payload_scope_is_source_specific_at_multimodal_join():
+    api = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "person.png"}},
+        "2": {"class_type": "FluxKontextProImageNode", "inputs": {"input_image": ["1", 0]}},
+        "3": {"class_type": "LoadVideo", "inputs": {"file": "motion.mp4"}},
+        "4": {"class_type": "RunwayAleph2VideoToVideoNode", "inputs": {"video": ["3", 0]}},
+        "5": {"class_type": "LoadAudio", "inputs": {"audio": "voice.m4a"}},
+        "6": {
+            "class_type": "ByteDance2ReferenceNode",
+            "inputs": {
+                "model.reference_images.image_1": ["2", 0],
+                "model.reference_videos.video_1": ["4", 0],
+                "model.reference_audios.audio_1": ["5", 0],
+            },
+        },
+        "9": {"class_type": "SaveVideo", "inputs": {"video": ["6", 0]}},
+    }
+
+    by_key = {
+        person["source_key"]: person for person in scan_payload(api, _engine())["persons"]
+    }
+
+    assert by_key["person.png"]["scope_statements"] == [
+        "Use of their reference image as a generation source",
+        "AI editing of their reference image",
+        "Conditioning AI generation on their reference image / likeness",
+    ]
+    assert by_key["motion.mp4"]["scope_statements"] == [
+        "Use of their source video as a generation source",
+        "AI editing of their source video",
+        "Conditioning AI generation on their source video / performance",
+    ]
+    assert by_key["voice.m4a"]["scope_statements"] == [
+        "Use of their source audio / voice performance as a generation source",
+        "Conditioning AI generation on their voice / audio performance",
+    ]
+
+
+def test_scan_payload_ops_include_manifest_bound_source_operations_and_roles():
+    api = {
+        "1": {"class_type": "LoadImage", "inputs": {"image": "person.png"}},
+        "2": {"class_type": "LoadVideo", "inputs": {"file": "motion.mp4"}},
+        "3": {"class_type": "LoadAudio", "inputs": {"audio": "voice.m4a"}},
+        "4": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "sd.safetensors"}},
+        "5": {
+            "class_type": "LoraLoader",
+            "inputs": {"lora_name": "performer.safetensors", "model": ["4", 0]},
+        },
+        "6": {
+            "class_type": "ByteDance2ReferenceNode",
+            "inputs": {
+                "model": ["5", 0],
+                "model.reference_images.image_1": ["1", 0],
+                "model.reference_videos.video_1": ["2", 0],
+                "model.reference_audios.audio_1": ["3", 0],
+            },
+        },
+        "9": {"class_type": "SaveVideo", "inputs": {"video": ["6", 0]}},
+    }
+
+    by_key = {
+        person["source_key"]: person for person in scan_payload(api, _engine())["persons"]
+    }
+
+    assert by_key["performer.safetensors"]["ops"][0] == {
+        "node_id": "5",
+        "class_type": "LoraLoader",
+    }
+    assert by_key["person.png"]["ops"][0] == {
+        "node_id": "1",
+        "class_type": "LoadImage",
+        "source_role": "reference_image",
+    }
+    assert by_key["motion.mp4"]["ops"][0] == {
+        "node_id": "2",
+        "class_type": "LoadVideo",
+        "source_role": "reference_video",
+    }
+    assert by_key["voice.m4a"]["ops"][0] == {
+        "node_id": "3",
+        "class_type": "LoadAudio",
+        "source_role": "reference_audio",
+    }
 
 
 def test_action_payload_disconnected_invite_carries_email_but_no_accept_url(tmp_path):
@@ -431,7 +583,19 @@ def test_scan_payload_serializes_ops():
         "9": {"class_type": "SaveImage", "inputs": {"images": ["2", 0]}},
     }
     person = scan_payload(api, _engine())["persons"][0]
-    assert person["ops"] == [{"node_id": "2", "class_type": "ReActorFaceSwap"}]
+    assert person["ops"] == [
+        {
+            "node_id": "1",
+            "class_type": "LoadImage",
+            "source_role": "reference_image",
+        },
+        {
+            "node_id": "2",
+            "class_type": "ReActorFaceSwap",
+            "input_name": "source_image",
+            "source_role": "reference_image",
+        }
+    ]
 
 
 def test_scan_payload_reads_accepted_invite_each_time_and_removes_invite_action(tmp_path):

@@ -1,9 +1,10 @@
 # Pluribus for ComfyUI
 
 Pluribus adds a people-and-permission workflow beside the ComfyUI graph you are
-already building. It finds supported person-bearing inputs locally, lets a
+already building. It finds supported sources that may contain or represent
+people, lets you review and describe them before connecting, then lets a
 connected user link each source to the real people in a Pluribus project,
-records the intended use, and creates a secure confirmation request for each
+record the intended use, and create a secure confirmation request for each
 person or representative.
 
 The normal v0.4 flow is:
@@ -14,18 +15,30 @@ A clean production install starts with no demo talent, no fixture permissions,
 and no pre-cleared people. Test fixtures still exist for automated development
 tests, but they are not loaded by the ComfyUI runtime.
 
-> **Release status:** this repository contains the v0.4.0 implementation. The
-> complete loop passed locally on 2026-07-13 from the launch branch against
-> localhost and disposable local Supabase. It has not been certified from a
-> public v0.4.0 tag against the deployed production API. See
-> [Your first project](docs/first-project.md)
-> for the user workflow and the exact verification boundary.
+> **Release status:** `v0.4.0-rc.2` remains the production-rehearsed baseline.
+> The people-first local identity analysis and expanded multimodal scanning
+> documented here are unreleased development-branch features and are not in
+> that tag. On 2026-07-13, the rehearsal began from a clean public RC1
+> install. After RC1 exposed a false-offline timeout, the exact public RC2 tag
+> at commit `096571bc16b0d03f62dc469a0b0e6e68057651bb` replaced it in the same
+> isolated rehearsal state, recovered that state, and completed the remaining
+> production checks. The complete zero-state journey was not repeated solely
+> on RC2. See
+> [Your first project](docs/first-project.md) for the walkthrough and the exact
+> verification boundary. The stable `v0.4.0` tag remains on hold while the
+> documented hard final-tag gates remain open; pin it once the final tag is
+> published.
 
 ## What the plugin does
 
-- Scans the current graph locally for supported reference images, identity
-  LoRAs, face-adapter paths, person-like prompts, and explicit Pluribus source
-  markers.
+- Scans every independent graph lane for supported reference images, video,
+  audio, identity LoRAs, face-adapter paths, person-like prompts, and explicit
+  Pluribus source markers. Repeated uses of the same source are grouped into
+  one technical audit record with source-specific downstream operations.
+- Optionally analyzes ComfyUI images and video locally, extracts portrait
+  evidence, and groups recurring appearances into project-scoped identity
+  candidates for producer confirmation. This is not open-world face
+  recognition and it never marks a person cleared.
 - Creates or selects a canonical Pluribus project for a real client or company.
 - Associates the current ComfyUI workflow with that project as a character
   sheet, storyboard, production graph, final graph, or other workflow.
@@ -55,12 +68,43 @@ Restart ComfyUI. The **Pluribus** tab appears in the sidebar rail. Older
 frontends without the sidebar-tab API get a floating **Pluribus** launcher in
 the lower-right corner.
 
+### Optional local identity analysis
+
+The graph scanner remains dependency-free. To turn source filenames into
+portrait crops and likely-person groups, install the optional vision backend
+into the same Python environment that launches ComfyUI:
+
+```bash
+/path/to/ComfyUI/.venv/bin/python -m pip install \
+  -r /path/to/ComfyUI/custom_nodes/comfyui-pluribus/requirements-identity.txt
+```
+
+Restart ComfyUI, then choose **Install local models** in the Pluribus Overview.
+That explicit action downloads checksum-pinned YuNet and SFace weights from the
+OpenCV model repository. The plugin does not silently download models or run
+`pip` from its web panel.
+
+Image and video bytes stay inside the configured ComfyUI input, output, and
+temporary directories. Face embeddings exist only in memory for the current
+analysis. Derived portrait crops, evidence sheets, job state, and cache entries
+are private local files under `PLURIBUS_DATA_DIR/identity` (or the plugin's
+private `data/identity` fallback). They are not sent when the user connects a
+Pluribus account.
+
 Run ComfyUI on loopback or behind authentication you trust. The plugin's
 same-origin `/pluribus/*` routes can read and mutate the paired workspace using
 the device token; exposing an otherwise unauthenticated ComfyUI server to a LAN
 or the public internet also exposes that local proxy surface.
 
-For a pinned production install, use a release tag only after that tag is
+To reproduce the earlier production-rehearsed baseline without the unreleased
+identity and multimodal work, pin the RC2 tag explicitly:
+
+```bash
+git clone --branch v0.4.0-rc.2 --depth 1 \
+  https://github.com/trypluribus/comfyui-pluribus
+```
+
+For a long-lived production install, pin `v0.4.0` once that final tag is
 published and listed in the repository releases. A Comfy Registry listing is a
 separate distribution follow-up.
 
@@ -80,11 +124,17 @@ intended use, or request confirmation.
 Open a workflow and choose **Find people**. The panel also scans the workflow
 that is open when the panel first mounts; **Rescan** repeats the scan.
 
-Detection currently understands:
+The graph scan currently understands:
 
 - `LoraLoader` and `LoraLoaderModelOnly` identity-model inputs;
 - `LoadImage` references, including references upstream of supported
   face-adapter and image-editing nodes;
+- `LoadVideo` references, including video-to-video paths through
+  `RunwayAleph2VideoToVideoNode`;
+- `LoadAudio` references and their exact audio input role on supported
+  multi-reference generation nodes;
+- Seedream, Flux Kontext, Kling, Runway, and Seedance-style hosted-node paths,
+  with each image, video, and audio input kept on its own provenance lane;
 - person-like text in `CLIPTextEncode` when no stronger source is present;
 - standalone `Pluribus Source Marker` nodes.
 
@@ -92,16 +142,36 @@ When adding a marker from the node library, choose the result once; a
 double-click can insert two nodes. Reference, LoRA, and unknown markers require
 a stable local source key. Prompt-only markers may omit the key when they have
 a display name or note. Incomplete markers are ignored and shown as a local
-warning, not counted as detected people.
+warning, not counted as source cards.
 
 For source-key and display-name rows, current ComfyUI builds open a small
 **Value** editor; enter the value and choose **OK**. Save the workflow after its
 first Pluribus scan/project binding as well as after marker edits so the private
 workflow key is serialized with the graph.
 
-The scanner follows graph provenance. It does not inspect pixels, recognize a
-face, or guarantee that every person in a rendered output was found. Review
-every result, especially custom-node graphs.
+The default panel is people-first: **Overview** summarizes likely people and
+review decisions, **People** presents real portrait crops and recurring
+appearance groups, **Sources** keeps exact filenames/node lineage as a
+progressive technical audit, and **Use & rights** translates reviewed graph
+operations into a permission scope. If one reference image feeds three style
+treatments, it remains one source audit record with three exact occurrences.
+
+For supported image and video inputs, previews and optional portrait analysis
+use same-origin local routes. YuNet detects face occurrences and SFace groups
+visually similar occurrences only within the current project media. A producer
+then confirms whether the group is the same person, reviews the included
+appearances, and may add a working name or character role. Explicit filename
+labels such as `layla_character_sheet.png` may prefill a working suggestion;
+the model does not discover a legal identity from a face.
+
+The system remains deliberately conservative. Crowds, profiles, occlusion,
+silhouettes, very small faces, twins/lookalikes, makeup, animation, and body-only
+performance can split or confuse groups. Audio sources are included in rights
+coverage, but voice diarization and voice-identity grouping are not implemented
+yet. Unsupported terminal nodes generate a coverage warning instead of being
+silently ignored. Review skipped sources and ambiguous crops; add a **Pluribus
+Source Marker** only when graph provenance genuinely cannot expose the source.
+A visual match is evidence for review, not proof of identity or permission.
 
 ### 2. Connect and choose a project
 
@@ -113,6 +183,15 @@ Pairing creates a device-specific token; it does not create a project or upload
 the graph. A new self-serve user can explicitly create an individual production
 workspace. Organization access remains invitation-controlled, and the v0.4
 setup dialog does not yet include an organization-workspace picker.
+
+After a successful disconnect, a returning owner can pair the same account
+again and recover the existing personal workspace and projects without creating
+another workspace. On the same ComfyUI installation, retained `bindings.json`
+also restores the private local workflow/source identities; deleting that file
+or moving to another machine does not recreate those local mappings from the
+server. The reconnect path was verified in production after deployed server
+commit `94e3840`; the reconnect correction was server-only, and the installed
+plugin remained the exact public `v0.4.0-rc.2` tag.
 
 Create a project with a project name, real client/company, optional agency, and
 short production context. Then classify the current graph as one of:
@@ -126,10 +205,11 @@ short production context. Then classify the current graph as one of:
 The plugin keeps a private stable workflow identifier so the same local graph
 can be found after a restart without sending its filename or raw JSON.
 
-### 3. Link every source to people
+### 3. Promote local drafts and link every source to people
 
-Open a detected source and choose **Link people**. You can select an existing
-person in the project or add a new person with:
+After connecting and choosing a project, open a source and choose **Link
+people**. Review any local draft details, then select an existing person in the
+project or add a new person with:
 
 - name;
 - project role;
@@ -141,8 +221,9 @@ reference images, LoRAs, or prompt sources to the same person. If the detector
 found something that is not a real person, mark it **Not a person**. If the
 classification is unresolved, keep it **Review required**.
 
-Adding or linking a person does not assert permission, representative
-authority, or legal clearance.
+Connecting is required to save or link a canonical person, persist the source
+to the Pluribus workspace, or request confirmation. Adding or linking a person
+does not assert permission, representative authority, or legal clearance.
 
 ### 4. Set intended use
 
@@ -234,6 +315,11 @@ Pluribus tracks two hashes for different purposes:
 Human-readable source labels are not part of the rights hash. Raw filenames,
 paths, prompts, node IDs, and graph JSON never enter the rights manifest.
 
+The production rehearsal verified both sides of this boundary: an unrelated
+storyboard marker-note edit preserved the current confirmation, while changing
+a source from **Review required** to **Not a person** created a new rights
+context and made the prior response display **Scope changed — request again**.
+
 ## Privacy and network boundary
 
 The local scan does not upload:
@@ -245,6 +331,11 @@ The local scan does not upload:
 - reference images;
 - LoRA/model files;
 - character sheets, storyboards, renders, or videos.
+
+Local source previews and unpromoted person drafts stay on the ComfyUI side of
+this boundary. The browser may request a supported input image from the same
+ComfyUI origin to render its card; the plugin does not forward that media to
+Pluribus.
 
 The connected flow sends only the information required for the canonical
 workspace record:
@@ -266,15 +357,30 @@ data directory. Treat that directory as sensitive local application state.
 
 **Disconnect** removes the local token only after server-side revocation is
 confirmed, or after a `401` proves the token is already unusable. If Pluribus is
-offline, the token stays local so revocation can be retried.
+offline, the token stays local so revocation can be retried. Production testing
+also verified this order: an initial disconnect revoked its credential; a later
+pairing recovered the existing owner workspace instead of creating a duplicate;
+the updated source disposition survived restart; and the final disconnect
+removed the connection secret while retaining private bindings and left all
+issued credentials revoked.
 
 ## Limitations
 
-- This is graph-provenance detection, not face recognition or biometric
-  identification.
+- Source discovery is graph-provenance detection. The optional local vision
+  pass does detect faces and compare embeddings within the current workflow,
+  but it is not open-world identity recognition and cannot discover a legal
+  name, contract, consent, or clearance.
+- A source card represents graph media, not a verified person count. The
+  **People** view may propose several appearance groups from one source, and a
+  producer must confirm the person and every included occurrence.
+- Source previews provide full-frame local context. People-view portraits are
+  local detector crops and similarity groups; neither is proof that two faces
+  are the same person or that anyone owns or cleared the source.
 - A synthetic-only result means no supported real-person source was found in
   the graph. It is not a legal conclusion.
-- Pluribus does not upload, host, or inspect creative media through this plugin.
+- Pluribus does not upload or host creative media through this plugin. Preview
+  and optional identity routes inspect files locally inside configured ComfyUI
+  media directories; only reviewed metadata is sent when the user connects.
 - The plugin does not create storyboards, character sheets, shots, or final
   renders.
 - v0.4 does not provide contracts, e-signature, payment, union clearance,
@@ -289,8 +395,11 @@ offline, the token stays local so revocation can be retried.
 - The panel has no manual normalized AI-action override yet; marker-only graphs
   do not verify downstream action inference or a render-ready production path.
 - Link-only retry identity does not yet survive a request-dialog reload.
-- Production v0.4 still requires a public-tag, deployed-API, new-user
-  end-to-end rehearsal before launch certification.
+- The production rehearsal used a returning authenticated email account that
+  created its first v0.4 workspace; a never-before-seen signup was not tested.
+- The production rehearsal used marker-only character-sheet and storyboard
+  workflows. It did not upload or generate real media, validate a render-ready
+  production graph, or validate downstream AI-action inference.
 
 ## Compatibility with v0.3
 

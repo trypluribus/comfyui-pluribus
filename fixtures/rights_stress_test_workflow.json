@@ -1,0 +1,2351 @@
+{
+  "id": "advanced-creative-pre-pluribus-v1",
+  "revision": 0,
+  "last_node_id": 65,
+  "last_link_id": 42,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "CheckpointLoaderSimple",
+      "pos": [
+        -2240,
+        -140
+      ],
+      "size": [
+        340,
+        100
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            1
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            2
+          ]
+        },
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            16
+          ]
+        }
+      ],
+      "title": "SDXL base",
+      "properties": {
+        "Node name for S&R": "CheckpointLoaderSimple",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "sd_xl_base_1.0.safetensors"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "LoraLoader",
+      "pos": [
+        -1840,
+        -140
+      ],
+      "size": [
+        360,
+        130
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 1
+        },
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ]
+        },
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            9,
+            10
+          ]
+        }
+      ],
+      "title": "Identity LoRA · alhassan_lrx26 self-likeness",
+      "properties": {
+        "Node name for S&R": "LoraLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "alhassan_lrx26_sdxl_webcam_v0.safetensors",
+        0.72,
+        0.72
+      ]
+    },
+    {
+      "id": 4,
+      "type": "IPAdapterUnifiedLoader",
+      "pos": [
+        -960,
+        -140
+      ],
+      "size": [
+        340,
+        90
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        },
+        {
+          "name": "ipadapter",
+          "type": "IPADAPTER",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "links": [
+            6
+          ]
+        },
+        {
+          "name": "ipadapter",
+          "type": "IPADAPTER",
+          "links": [
+            7
+          ]
+        }
+      ],
+      "title": "IPAdapter · PLUS FACE",
+      "properties": {
+        "Node name for S&R": "IPAdapterUnifiedLoader"
+      },
+      "widgets_values": [
+        "PLUS FACE (portraits)"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "LoadImage",
+      "pos": [
+        -1840,
+        80
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            38
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Identity reference A · neutral headshot",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "IMG_0003.jpeg",
+        "image"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "LoadImage",
+      "pos": [
+        -1480,
+        80
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            39
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Identity reference B · location / wardrobe photo",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "IMG_2505.jpeg",
+        "image"
+      ]
+    },
+    {
+      "id": 7,
+      "type": "ImageBatch",
+      "pos": [
+        -760,
+        430
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "link": 4
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "link": 5
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            41
+          ]
+        }
+      ],
+      "title": "Two photos of one performer → conditioning batch",
+      "properties": {
+        "Node name for S&R": "ImageBatch"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 8,
+      "type": "IPAdapterAdvanced",
+      "pos": [
+        -560,
+        -140
+      ],
+      "size": [
+        360,
+        280
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 6
+        },
+        {
+          "name": "ipadapter",
+          "type": "IPADAPTER",
+          "link": 7
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 8
+        },
+        {
+          "name": "image_negative",
+          "type": "IMAGE",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "attn_mask",
+          "type": "MASK",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "clip_vision",
+          "type": "CLIP_VISION",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "title": "Multi-photo IPAdapter identity conditioning",
+      "properties": {
+        "Node name for S&R": "IPAdapterAdvanced"
+      },
+      "widgets_values": [
+        0.76,
+        "linear",
+        "average",
+        0.0,
+        0.82,
+        "K+V"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -160,
+        160
+      ],
+      "size": [
+        440,
+        180
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            12
+          ]
+        }
+      ],
+      "title": "Hero performer prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "alhassan_lrx26, a man in his early 30s watching a tense movie on a deep blue couch in a warm modern living room, expressive reaction, premium streaming-service campaign, cinematic practical lighting, natural skin texture, crisp face, believable hands, 35mm lens, shallow depth of field"
+      ]
+    },
+    {
+      "id": 10,
+      "type": "CLIPTextEncode",
+      "pos": [
+        -160,
+        350
+      ],
+      "size": [
+        440,
+        140
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 10
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            13
+          ]
+        }
+      ],
+      "title": "Negative prompt",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "duplicate person, merged faces, deformed hands, extra fingers, extra limbs, warped eyes, waxy skin, text, watermark, logo, low resolution, motion blur"
+      ]
+    },
+    {
+      "id": 11,
+      "type": "EmptyLatentImage",
+      "pos": [
+        300,
+        430
+      ],
+      "size": [
+        300,
+        110
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            14
+          ]
+        }
+      ],
+      "title": "16:9 campaign keyframe",
+      "properties": {
+        "Node name for S&R": "EmptyLatentImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        1216,
+        704,
+        1
+      ]
+    },
+    {
+      "id": 12,
+      "type": "KSampler",
+      "pos": [
+        300,
+        -80
+      ],
+      "size": [
+        310,
+        270
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 11
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 12
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 13
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 14
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            15
+          ]
+        }
+      ],
+      "title": "Generate blended ensemble keyframe",
+      "properties": {
+        "Node name for S&R": "KSampler",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        20260717,
+        "fixed",
+        30,
+        6.2,
+        "dpmpp_2m",
+        "karras",
+        1.0
+      ]
+    },
+    {
+      "id": 13,
+      "type": "VAEDecode",
+      "pos": [
+        670,
+        -80
+      ],
+      "size": [
+        230,
+        80
+      ],
+      "flags": {},
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 15
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 16
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            17,
+            18
+          ]
+        }
+      ],
+      "title": "Decode base ensemble",
+      "properties": {
+        "Node name for S&R": "VAEDecode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 14,
+      "type": "SaveImage",
+      "pos": [
+        950,
+        -100
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 17
+        }
+      ],
+      "outputs": [],
+      "title": "Checkpoint · blended cast keyframe",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "rights_stress/01_blended_cast"
+      ]
+    },
+    {
+      "id": 15,
+      "type": "LoadImage",
+      "pos": [
+        -1840,
+        760
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            19
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Tyler · facial likeness reference",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "TYLER_FACE_MASTER_A.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 16,
+      "type": "LoadImage",
+      "pos": [
+        -1480,
+        760
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Tyler · body / physical-performance reference",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "TYLER_BODY_GYM_A.jpg",
+        "image"
+      ]
+    },
+    {
+      "id": 17,
+      "type": "LoadImage",
+      "pos": [
+        -1120,
+        760
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            21
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Tyler · tattoo / identifying-feature sheet",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "TYLER_TATTOO_CONDITIONING_V02_3840x2160.png",
+        "image"
+      ]
+    },
+    {
+      "id": 18,
+      "type": "ByteDanceSeedreamNodeV2",
+      "pos": [
+        -520,
+        700
+      ],
+      "size": [
+        500,
+        390
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "prompt",
+          "name": "prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.size_preset",
+          "name": "model.size_preset",
+          "type": "COMBO",
+          "widget": {
+            "name": "model.size_preset"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.width",
+          "name": "model.width",
+          "type": "INT",
+          "widget": {
+            "name": "model.width"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.height",
+          "name": "model.height",
+          "type": "INT",
+          "widget": {
+            "name": "model.height"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.max_images",
+          "name": "model.max_images",
+          "type": "INT",
+          "widget": {
+            "name": "model.max_images"
+          },
+          "link": null
+        },
+        {
+          "name": "model.images.image_1",
+          "type": "IMAGE",
+          "link": 18,
+          "shape": 7,
+          "localized_name": "model.images.image_1",
+          "label": "image_1"
+        },
+        {
+          "name": "model.images.image_2",
+          "type": "IMAGE",
+          "link": 19,
+          "shape": 7,
+          "localized_name": "model.images.image_2",
+          "label": "image_2"
+        },
+        {
+          "name": "model.images.image_3",
+          "type": "IMAGE",
+          "link": 20,
+          "shape": 7,
+          "localized_name": "model.images.image_3",
+          "label": "image_3"
+        },
+        {
+          "name": "model.images.image_4",
+          "type": "IMAGE",
+          "link": 21,
+          "shape": 7,
+          "localized_name": "model.images.image_4",
+          "label": "image_4"
+        },
+        {
+          "localized_name": "model.fail_on_partial",
+          "name": "model.fail_on_partial",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "model.fail_on_partial"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "watermark",
+          "name": "watermark",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "watermark"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            22,
+            23,
+            24,
+            25
+          ]
+        }
+      ],
+      "title": "Multi-reference cast composite · same performer, 3 asset keys",
+      "properties": {
+        "Node name for S&R": "ByteDanceSeedreamNodeV2",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Use image 1 as the exact living-room composition. Add the same male performer shown in reference images 2, 3 and 4 as a friend on the right side of the couch. Reference 2 controls face, reference 3 controls build and pose, and reference 4 controls tattoo placement. Preserve the first performer from image 1. Photoreal premium campaign.",
+        "seedream 5.0 lite",
+        "(2K) 2848x1600 (16:9)",
+        2048,
+        2048,
+        4,
+        false,
+        20260717,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 19,
+      "type": "SaveImage",
+      "pos": [
+        80,
+        720
+      ],
+      "size": [
+        330,
+        320
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 22
+        }
+      ],
+      "outputs": [],
+      "title": "Checkpoint · multi-reference cast composite",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "rights_stress/02_multiref_cast"
+      ]
+    },
+    {
+      "id": 20,
+      "type": "FluxKontextProImageNode",
+      "pos": [
+        600,
+        600
+      ],
+      "size": [
+        430,
+        330
+      ],
+      "flags": {},
+      "order": 18,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_image",
+          "type": "IMAGE",
+          "link": 23,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            26,
+            29,
+            33
+          ]
+        }
+      ],
+      "title": "Shot A · wide couch master",
+      "properties": {
+        "Node name for S&R": "FluxKontextProImageNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Reframe as a symmetrical wide master shot of both friends on the blue couch. Keep both faces, bodies, tattoos and wardrobe identity consistent. Add a glowing television off camera and warm practical lamps. Premium cinematic streaming campaign.",
+        "16:9",
+        3.0,
+        50,
+        1717,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 21,
+      "type": "FluxKontextProImageNode",
+      "pos": [
+        600,
+        980
+      ],
+      "size": [
+        430,
+        330
+      ],
+      "flags": {},
+      "order": 19,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_image",
+          "type": "IMAGE",
+          "link": 24,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            27,
+            34
+          ]
+        }
+      ],
+      "title": "Shot B · tight reaction (only some cast visible)",
+      "properties": {
+        "Node name for S&R": "FluxKontextProImageNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Create a tight 85mm reaction two-shot favoring the first performer while the second remains soft and partially cropped at the frame edge. Preserve both identities and exact wardrobe. Tense, funny surprise, cinematic warm-blue contrast.",
+        "16:9",
+        3.0,
+        50,
+        1818,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 22,
+      "type": "FluxKontextProImageNode",
+      "pos": [
+        600,
+        1360
+      ],
+      "size": [
+        430,
+        330
+      ],
+      "flags": {},
+      "order": 20,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input_image",
+          "type": "IMAGE",
+          "link": 25,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            28,
+            35
+          ]
+        }
+      ],
+      "title": "Shot C · over-shoulder product reveal",
+      "properties": {
+        "Node name for S&R": "FluxKontextProImageNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Create an over-the-shoulder shot from behind the tattooed performer toward his friend, with a fictional silver streaming remote prominent in the foreground. Preserve the tattooed performer's arm tattoos, both faces and wardrobe continuity. Cinematic commercial lighting.",
+        "16:9",
+        3.0,
+        50,
+        1919,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 23,
+      "type": "SaveImage",
+      "pos": [
+        1100,
+        600
+      ],
+      "size": [
+        320,
+        300
+      ],
+      "flags": {},
+      "order": 21,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 26
+        }
+      ],
+      "outputs": [],
+      "title": "Shot A output",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "rights_stress/03A_wide"
+      ]
+    },
+    {
+      "id": 24,
+      "type": "SaveImage",
+      "pos": [
+        1100,
+        980
+      ],
+      "size": [
+        320,
+        300
+      ],
+      "flags": {},
+      "order": 22,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 27
+        }
+      ],
+      "outputs": [],
+      "title": "Shot B output",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "rights_stress/03B_reaction"
+      ]
+    },
+    {
+      "id": 25,
+      "type": "SaveImage",
+      "pos": [
+        1100,
+        1360
+      ],
+      "size": [
+        320,
+        300
+      ],
+      "flags": {},
+      "order": 23,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 28
+        }
+      ],
+      "outputs": [],
+      "title": "Shot C output",
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "rights_stress/03C_product"
+      ]
+    },
+    {
+      "id": 26,
+      "type": "KlingImage2VideoNode",
+      "pos": [
+        1500,
+        560
+      ],
+      "size": [
+        430,
+        350
+      ],
+      "flags": {},
+      "order": 24,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "start_frame",
+          "type": "IMAGE",
+          "link": 29
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            30
+          ]
+        },
+        {
+          "name": "video_id",
+          "type": "STRING",
+          "links": []
+        },
+        {
+          "name": "duration",
+          "type": "STRING",
+          "links": []
+        }
+      ],
+      "title": "I2V · animate the wide ensemble",
+      "properties": {
+        "Node name for S&R": "KlingImage2VideoNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Slow push-in as both friends react to the television: the left performer leans forward and the tattooed performer laughs and lifts the remote. Preserve both faces, bodies, tattoos and wardrobe details. Natural overlapping performance, no cuts.",
+        "identity drift, face morph, extra people, warped hands, tattoo changes, jump cuts, text, watermark",
+        "kling-v2-5-turbo",
+        0.8,
+        "pro",
+        "16:9",
+        "5"
+      ]
+    },
+    {
+      "id": 27,
+      "type": "SaveVideo",
+      "pos": [
+        1990,
+        560
+      ],
+      "size": [
+        470,
+        330
+      ],
+      "flags": {},
+      "order": 25,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 30
+        }
+      ],
+      "outputs": [],
+      "title": "Preview · generated ensemble performance",
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "video/rights_stress/04_generated_ensemble",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 28,
+      "type": "LoadVideo",
+      "pos": [
+        -1840,
+        1880
+      ],
+      "size": [
+        330,
+        300
+      ],
+      "flags": {},
+      "order": 26,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            31
+          ]
+        }
+      ],
+      "title": "Source performance · multi-person clip, cast unresolved",
+      "properties": {
+        "Node name for S&R": "LoadVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "little_flower/lf_fight_s02.mp4",
+        "file"
+      ]
+    },
+    {
+      "id": 29,
+      "type": "RunwayAleph2VideoToVideoNode",
+      "pos": [
+        -1420,
+        1880
+      ],
+      "size": [
+        440,
+        350
+      ],
+      "flags": {},
+      "order": 27,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 31
+        },
+        {
+          "name": "keyframes",
+          "type": "RUNWAY_ALEPH2_KEYFRAME",
+          "link": null,
+          "shape": 7
+        },
+        {
+          "name": "prompt_images",
+          "type": "RUNWAY_ALEPH2_PROMPT_IMAGE",
+          "link": null,
+          "shape": 7
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            32,
+            36
+          ]
+        }
+      ],
+      "title": "V2V · retain motion, replace scene and styling",
+      "properties": {
+        "Node name for S&R": "RunwayAleph2VideoToVideoNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Transform the physical performance into a glossy streaming-service reaction insert set in the same warm living room as the campaign. Retain the original timing, gestures, facial expressions and camera movement, but replace wardrobe and environment.",
+        2727,
+        "fixed",
+        "low"
+      ]
+    },
+    {
+      "id": 30,
+      "type": "SaveVideo",
+      "pos": [
+        -900,
+        1880
+      ],
+      "size": [
+        470,
+        330
+      ],
+      "flags": {},
+      "order": 28,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 32
+        }
+      ],
+      "outputs": [],
+      "title": "Preview · transformed source performance",
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "video/rights_stress/05_source_performance_v2v",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 31,
+      "type": "ByteDance2ReferenceNode",
+      "pos": [
+        1520,
+        1120
+      ],
+      "size": [
+        520,
+        460
+      ],
+      "flags": {},
+      "order": 29,
+      "mode": 0,
+      "inputs": [
+        {
+          "localized_name": "model",
+          "name": "model",
+          "type": "COMFY_DYNAMICCOMBO_V3",
+          "widget": {
+            "name": "model"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.prompt",
+          "name": "model.prompt",
+          "type": "STRING",
+          "widget": {
+            "name": "model.prompt"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.resolution",
+          "name": "model.resolution",
+          "type": "COMBO",
+          "widget": {
+            "name": "model.resolution"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.ratio",
+          "name": "model.ratio",
+          "type": "COMBO",
+          "widget": {
+            "name": "model.ratio"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.duration",
+          "name": "model.duration",
+          "type": "INT",
+          "widget": {
+            "name": "model.duration"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.generate_audio",
+          "name": "model.generate_audio",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "model.generate_audio"
+          },
+          "link": null
+        },
+        {
+          "name": "model.reference_images.image_1",
+          "type": "IMAGE",
+          "link": 33,
+          "shape": 7,
+          "localized_name": "model.reference_images.image_1",
+          "label": "image_1"
+        },
+        {
+          "name": "model.reference_images.image_2",
+          "type": "IMAGE",
+          "link": 34,
+          "shape": 7,
+          "localized_name": "model.reference_images.image_2",
+          "label": "image_2"
+        },
+        {
+          "name": "model.reference_images.image_3",
+          "type": "IMAGE",
+          "link": 35,
+          "shape": 7,
+          "localized_name": "model.reference_images.image_3",
+          "label": "image_3"
+        },
+        {
+          "name": "model.reference_videos.video_1",
+          "type": "VIDEO",
+          "link": 36,
+          "shape": 7,
+          "localized_name": "model.reference_videos.video_1",
+          "label": "video_1"
+        },
+        {
+          "name": "model.reference_audios.audio_1",
+          "type": "AUDIO",
+          "link": null,
+          "shape": 7,
+          "localized_name": "model.reference_audios.audio_1",
+          "label": "audio_1"
+        },
+        {
+          "name": "model.reference_assets.asset_1",
+          "type": "STRING",
+          "link": null,
+          "shape": 7,
+          "localized_name": "model.reference_assets.asset_1",
+          "label": "asset_1"
+        },
+        {
+          "localized_name": "model.auto_downscale",
+          "name": "model.auto_downscale",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "model.auto_downscale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "model.auto_upscale",
+          "name": "model.auto_upscale",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "model.auto_upscale"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "seed",
+          "name": "seed",
+          "type": "INT",
+          "widget": {
+            "name": "seed"
+          },
+          "link": null
+        },
+        {
+          "localized_name": "watermark",
+          "name": "watermark",
+          "type": "BOOLEAN",
+          "widget": {
+            "name": "watermark"
+          },
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            37
+          ]
+        }
+      ],
+      "title": "FINAL · 3 shot refs + inherited source performance",
+      "properties": {
+        "Node name for S&R": "ByteDance2ReferenceNode",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "Seedance 2.0 Fast",
+        "Create a continuous five-second campaign moment with the two friends from reference images 1-3 on the blue couch. Begin on the wide master, move through the tight reaction, and land on the over-shoulder product reveal. Use reference video 1 for timing and group reaction energy. Preserve both faces, bodies, tattoos, wardrobe and distinct performance. Generate subtle room tone and overlapping nonverbal reactions only; no intelligible dialogue.",
+        "480p",
+        "adaptive",
+        5,
+        true,
+        true,
+        false,
+        3131,
+        "fixed",
+        false
+      ]
+    },
+    {
+      "id": 32,
+      "type": "SaveVideo",
+      "pos": [
+        2110,
+        1120
+      ],
+      "size": [
+        500,
+        420
+      ],
+      "flags": {},
+      "order": 30,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 37
+        }
+      ],
+      "outputs": [],
+      "title": "FINAL OUTPUT · rights lineage is deliberately ambiguous",
+      "properties": {
+        "Node name for S&R": "SaveVideo",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "video/rights_stress/06_final_multisource",
+        "auto",
+        "auto"
+      ]
+    },
+    {
+      "id": 33,
+      "type": "ImageScale",
+      "pos": [
+        -1840,
+        430
+      ],
+      "size": [
+        310,
+        130
+      ],
+      "flags": {},
+      "order": 31,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 38
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            4
+          ]
+        }
+      ],
+      "title": "Normalize headshot for IPAdapter batch",
+      "properties": {
+        "Node name for S&R": "ImageScale",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "lanczos",
+        1024,
+        1024,
+        "center"
+      ]
+    },
+    {
+      "id": 34,
+      "type": "ImageScale",
+      "pos": [
+        -1480,
+        430
+      ],
+      "size": [
+        310,
+        130
+      ],
+      "flags": {},
+      "order": 32,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 39
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            5
+          ]
+        }
+      ],
+      "title": "Normalize location photo for IPAdapter batch",
+      "properties": {
+        "Node name for S&R": "ImageScale",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "lanczos",
+        1024,
+        1024,
+        "center"
+      ]
+    },
+    {
+      "id": 35,
+      "type": "LoadImage",
+      "pos": [
+        -1120,
+        80
+      ],
+      "size": [
+        310,
+        320
+      ],
+      "flags": {},
+      "order": 33,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            40
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": []
+        }
+      ],
+      "title": "Understory · derived character sheet of the same performer",
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "hero-cast-final_00002_.png",
+        "image"
+      ]
+    },
+    {
+      "id": 36,
+      "type": "ImageScale",
+      "pos": [
+        -1120,
+        430
+      ],
+      "size": [
+        310,
+        130
+      ],
+      "flags": {},
+      "order": 34,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 40
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            42
+          ]
+        }
+      ],
+      "title": "Normalize character sheet for IPAdapter batch",
+      "properties": {
+        "Node name for S&R": "ImageScale",
+        "cnr_id": "comfy-core",
+        "ver": "0.25.0"
+      },
+      "widgets_values": [
+        "lanczos",
+        1024,
+        1024,
+        "center"
+      ]
+    },
+    {
+      "id": 37,
+      "type": "ImageBatch",
+      "pos": [
+        -400,
+        560
+      ],
+      "size": [
+        300,
+        90
+      ],
+      "flags": {},
+      "order": 35,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image1",
+          "type": "IMAGE",
+          "link": 41
+        },
+        {
+          "name": "image2",
+          "type": "IMAGE",
+          "link": 42
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            8
+          ]
+        }
+      ],
+      "title": "Add derived character sheet to identity batch",
+      "properties": {
+        "Node name for S&R": "ImageBatch"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 60,
+      "type": "MarkdownNote",
+      "pos": [
+        -2940,
+        -140
+      ],
+      "size": [
+        600,
+        720
+      ],
+      "flags": {},
+      "order": 36,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "# Multi-performer rights stress test\n\nAn advanced creative graph as it would exist before a rights/provenance tool is used. It mixes model-derived likeness, multiple image references for the same people, physical performance, generated performance and repeated shot variants.\n\n**Do not queue everything casually.** Seedream, Flux Kontext, Kling, Runway and Seedance are hosted Partner Nodes and may use credits. Render individual lanes only when wanted.\n\nRead left → right, top → bottom. This graph contains no Pluribus-specific nodes or annotations."
+      ]
+    },
+    {
+      "id": 61,
+      "type": "MarkdownNote",
+      "pos": [
+        -2240,
+        -420
+      ],
+      "size": [
+        760,
+        200
+      ],
+      "flags": {},
+      "order": 37,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 1 · One performer enters through four source assets\nA self-likeness LoRA, two ordinary photos, and a derived Understory character sheet condition the base frame. The graph itself does not say that all four assets resolve to one identity—or that the sheet was derived from the photos."
+      ]
+    },
+    {
+      "id": 62,
+      "type": "MarkdownNote",
+      "pos": [
+        -1840,
+        540
+      ],
+      "size": [
+        760,
+        170
+      ],
+      "flags": {},
+      "order": 38,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 2 · One performer, three source assets\nTyler's face, body and tattoo sheet are separate files. A file-key tracker may show three people; a visual tracker may miss the tattoo/body performance entirely."
+      ]
+    },
+    {
+      "id": 63,
+      "type": "MarkdownNote",
+      "pos": [
+        560,
+        380
+      ],
+      "size": [
+        860,
+        170
+      ],
+      "flags": {},
+      "order": 39,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 3 · Shot branching\nWide, tight and over-shoulder variants inherit the same source history even when a performer is cropped, blurred or only represented by an arm/tattoo."
+      ]
+    },
+    {
+      "id": 64,
+      "type": "MarkdownNote",
+      "pos": [
+        -1840,
+        1640
+      ],
+      "size": [
+        950,
+        180
+      ],
+      "flags": {},
+      "order": 40,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 4 · A second kind of performance\nThis lane starts from recorded motion. Runway changes wardrobe and scene while retaining timing, gesture, expression and camera motion. Those are performance uses even if faces drift."
+      ]
+    },
+    {
+      "id": 65,
+      "type": "MarkdownNote",
+      "pos": [
+        1500,
+        900
+      ],
+      "size": [
+        1100,
+        170
+      ],
+      "flags": {},
+      "order": 41,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## 5 · Final recombination\nThree generated shot references plus one transformed physical-performance video become a new clip with generated audio. The final pixels do not reveal which face, body, motion or voice contribution survived."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "MODEL"
+    ],
+    [
+      2,
+      1,
+      1,
+      2,
+      1,
+      "CLIP"
+    ],
+    [
+      3,
+      2,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      33,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      5,
+      34,
+      0,
+      7,
+      1,
+      "IMAGE"
+    ],
+    [
+      6,
+      4,
+      0,
+      8,
+      0,
+      "MODEL"
+    ],
+    [
+      7,
+      4,
+      1,
+      8,
+      1,
+      "IPADAPTER"
+    ],
+    [
+      8,
+      37,
+      0,
+      8,
+      2,
+      "IMAGE"
+    ],
+    [
+      9,
+      2,
+      1,
+      9,
+      0,
+      "CLIP"
+    ],
+    [
+      10,
+      2,
+      1,
+      10,
+      0,
+      "CLIP"
+    ],
+    [
+      11,
+      8,
+      0,
+      12,
+      0,
+      "MODEL"
+    ],
+    [
+      12,
+      9,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      13,
+      10,
+      0,
+      12,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      14,
+      11,
+      0,
+      12,
+      3,
+      "LATENT"
+    ],
+    [
+      15,
+      12,
+      0,
+      13,
+      0,
+      "LATENT"
+    ],
+    [
+      16,
+      1,
+      2,
+      13,
+      1,
+      "VAE"
+    ],
+    [
+      17,
+      13,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      18,
+      13,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      19,
+      15,
+      0,
+      18,
+      1,
+      "IMAGE"
+    ],
+    [
+      20,
+      16,
+      0,
+      18,
+      2,
+      "IMAGE"
+    ],
+    [
+      21,
+      17,
+      0,
+      18,
+      3,
+      "IMAGE"
+    ],
+    [
+      22,
+      18,
+      0,
+      19,
+      0,
+      "IMAGE"
+    ],
+    [
+      23,
+      18,
+      0,
+      20,
+      0,
+      "IMAGE"
+    ],
+    [
+      24,
+      18,
+      0,
+      21,
+      0,
+      "IMAGE"
+    ],
+    [
+      25,
+      18,
+      0,
+      22,
+      0,
+      "IMAGE"
+    ],
+    [
+      26,
+      20,
+      0,
+      23,
+      0,
+      "IMAGE"
+    ],
+    [
+      27,
+      21,
+      0,
+      24,
+      0,
+      "IMAGE"
+    ],
+    [
+      28,
+      22,
+      0,
+      25,
+      0,
+      "IMAGE"
+    ],
+    [
+      29,
+      20,
+      0,
+      26,
+      0,
+      "IMAGE"
+    ],
+    [
+      30,
+      26,
+      0,
+      27,
+      0,
+      "VIDEO"
+    ],
+    [
+      31,
+      28,
+      0,
+      29,
+      0,
+      "VIDEO"
+    ],
+    [
+      32,
+      29,
+      0,
+      30,
+      0,
+      "VIDEO"
+    ],
+    [
+      33,
+      20,
+      0,
+      31,
+      0,
+      "IMAGE"
+    ],
+    [
+      34,
+      21,
+      0,
+      31,
+      1,
+      "IMAGE"
+    ],
+    [
+      35,
+      22,
+      0,
+      31,
+      2,
+      "IMAGE"
+    ],
+    [
+      36,
+      29,
+      0,
+      31,
+      3,
+      "VIDEO"
+    ],
+    [
+      37,
+      31,
+      0,
+      32,
+      0,
+      "VIDEO"
+    ],
+    [
+      38,
+      5,
+      0,
+      33,
+      0,
+      "IMAGE"
+    ],
+    [
+      39,
+      6,
+      0,
+      34,
+      0,
+      "IMAGE"
+    ],
+    [
+      40,
+      35,
+      0,
+      36,
+      0,
+      "IMAGE"
+    ],
+    [
+      41,
+      7,
+      0,
+      37,
+      0,
+      "IMAGE"
+    ],
+    [
+      42,
+      36,
+      0,
+      37,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "1 · IDENTITY LORA + MULTI-PHOTO CONDITIONING",
+      "bounding": [
+        -2300,
+        -500,
+        3650,
+        1120
+      ],
+      "color": "#49351f",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 2,
+      "title": "2 · MULTI-ASSET IDENTITY COMPOSITE",
+      "bounding": [
+        -1900,
+        500,
+        2400,
+        700
+      ],
+      "color": "#4a2d1d",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 3,
+      "title": "3 · CAMERA / SHOT VARIATIONS",
+      "bounding": [
+        520,
+        340,
+        940,
+        1360
+      ],
+      "color": "#2d3c50",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 4,
+      "title": "4A · GENERATED PERFORMANCE · I2V",
+      "bounding": [
+        1460,
+        500,
+        1050,
+        440
+      ],
+      "color": "#274237",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 5,
+      "title": "4B · RECORDED PERFORMANCE · V2V",
+      "bounding": [
+        -1900,
+        1600,
+        1540,
+        660
+      ],
+      "color": "#512b2b",
+      "font_size": 24,
+      "flags": {}
+    },
+    {
+      "id": 6,
+      "title": "5 · FINAL MULTI-REFERENCE VIDEO",
+      "bounding": [
+        1460,
+        860,
+        1210,
+        760
+      ],
+      "color": "#3c3154",
+      "font_size": 24,
+      "flags": {}
+    }
+  ],
+  "config": {},
+  "extra": {
+    "frontendVersion": "1.45.15"
+  },
+  "version": 0.4
+}

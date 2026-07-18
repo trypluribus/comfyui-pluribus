@@ -44,9 +44,15 @@ class Roster:
     def replacement_key_for(self, kind: str) -> str:
         """Return a cleared asset compatible with the source field kind."""
         if kind == "lora":
-            is_compatible = lambda key: key.lower().endswith(".safetensors")
+            def is_compatible(key: str) -> bool:
+                return key.lower().endswith(".safetensors")
+        elif kind == "reference":
+            def is_compatible(key: str) -> bool:
+                return key.lower().endswith(IMAGE_EXTENSIONS)
         else:
-            is_compatible = lambda key: key.lower().endswith(IMAGE_EXTENSIONS)
+            # Audio, prompt, and unknown sources cannot safely be replaced by
+            # a cleared image/LoRA asset merely because their filenames match.
+            return ""
 
         for asset in self.cleared_assets():
             candidates = [asset.replacement_asset_key, *asset.asset_keys]

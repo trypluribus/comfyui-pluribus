@@ -17,8 +17,19 @@ const state = {
   projectContext: null,
   workflowBinding: null,
   sourceRefs: {}, // local person identity -> opaque 64-hex source reference
+  personDrafts: [], // private local drafts loaded from bindings.json
+  sourceReviews: {}, // local no-face outcomes keyed by opaque sourceRef
   manifestSynced: false, // current scan + workflow kind are canonical upstream
   projectLoading: false,
+  identityJob: null, // { jobId, state, progress? } from the local media worker
+  identityPayload: null, // normalized { coverage, candidates, occurrences, issues }
+  identityAnalyzing: false,
+  identityError: null,
+  identityCapabilities: null,
+  identityCapabilitiesLoading: false,
+  identityModelsInstalling: false,
+  identityLinks: [], // candidate-specific confirmations; do not infer identity from shared sources
+  identityLinksRevision: null, // compare-and-set revision for the current analysis link document
 };
 
 const listeners = new Set();
@@ -34,7 +45,7 @@ export function subscribe(listener) {
 
 export function setState(patch) {
   Object.assign(state, patch);
-  for (const listener of listeners) listener(state);
+  for (const listener of listeners) listener(state, patch);
 }
 
 export function invalidateScan() {
@@ -46,10 +57,18 @@ export function invalidateScan() {
     scannedAt: null,
     scanEpoch: state.scanEpoch + 1,
     sourceRefs: {},
+    personDrafts: [],
+    sourceReviews: {},
     manifestSynced: false,
     workflowBinding: null,
     activeProjectId: null,
     projectContext: null,
+    identityJob: null,
+    identityPayload: null,
+    identityAnalyzing: false,
+    identityError: null,
+    identityLinks: [],
+    identityLinksRevision: null,
   });
 }
 

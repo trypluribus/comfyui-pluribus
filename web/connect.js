@@ -5,7 +5,7 @@
 
 import { disconnectPluribus, getConnection, pollConnect, startConnect } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
-import { setState } from "./store.js";
+import { getState, setState } from "./store.js";
 
 export async function refreshConnection() {
   try {
@@ -18,7 +18,7 @@ export async function refreshConnection() {
   }
 }
 
-export function openConnectDialog(connection) {
+export function openConnectDialog(connection, onConnected = null) {
   let pollTimer = null;
 
   const overlay = el("div", { class: "plb-overlay plb-root" });
@@ -124,7 +124,12 @@ export function openConnectDialog(connection) {
         stopPolling();
         await refreshConnection();
         toast(`Connected to Pluribus as ${result.account_email || "your account"}.`);
-        renderConnected({ account_email: result.account_email });
+        if (onConnected) {
+          close();
+          await runContinuation(onConnected);
+        } else {
+          renderConnected({ account_email: result.account_email });
+        }
       } else if (result.state === "failed") {
         stopPolling();
         await refreshConnection();
@@ -223,5 +228,23 @@ export function openConnectDialog(connection) {
     renderPairing(connection);
   } else {
     renderIntro();
+  }
+}
+
+export function requirePluribusConnection(action) {
+  const connection = getState().connection;
+  if (connection?.state === "connected") {
+    void runContinuation(action);
+    return true;
+  }
+  openConnectDialog(connection, action);
+  return false;
+}
+
+async function runContinuation(action) {
+  try {
+    await action?.();
+  } catch (error) {
+    toast(error.message || "Could not continue after connecting.");
   }
 }
