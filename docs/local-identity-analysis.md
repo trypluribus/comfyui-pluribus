@@ -116,6 +116,18 @@ links. A confirmed link requires an opaque `personId` and an `occurrenceIds`
 list, which can select only some appearances in a mixed cluster. Every ID must
 have been minted for that candidate and job.
 
+The People review UI exposes the same occurrence-level contract. A producer can
+expand every source group, deselect individual frames, and leave the unselected
+appearances unresolved. They can then review the remaining appearances as a
+different person, assign them to a saved workflow or project person, or leave
+them in the review queue.
+
+Saved-person assignment is always explicit. The producer chooses an existing
+person and confirms that assignment; the plugin never merges identities
+automatically. When a local draft already maps to a canonical project person,
+the picker presents one saved identity and preserves that canonical mapping
+instead of creating another person record.
+
 Link writes use an optimistic revision so two open panels cannot silently
 overwrite one another:
 

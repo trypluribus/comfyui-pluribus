@@ -429,12 +429,18 @@ export function identityLinksWithConfirmedDecision(
     occurrenceIds = [],
     priorPersonId = "",
     preservePriorUnselected = false,
+    preserveTargetExisting = false,
+    targetPersonIds = [],
     candidateOccurrenceIds = [],
   } = {}
 ) {
   const normalizedCandidateId = text(candidateId);
   const normalizedPersonId = text(personId);
   if (!normalizedCandidateId || !normalizedPersonId) return [...list(links)];
+  const normalizedTargetPersonIds = new Set([
+    normalizedPersonId,
+    ...list(targetPersonIds).map(String),
+  ].filter(Boolean));
   const selected = new Set(list(occurrenceIds).filter(Boolean).map(String));
   const retained = [];
   let priorWasConfirmed = false;
@@ -447,7 +453,18 @@ export function identityLinksWithConfirmedDecision(
     }
     const linkedPersonId = text(link?.personId || link?.person_id);
     const state = text(link?.state, "confirmed");
-    if (linkedPersonId === normalizedPersonId) continue;
+    if (normalizedTargetPersonIds.has(linkedPersonId)) {
+      if (preserveTargetExisting && state === "confirmed") {
+        const existingTargetOccurrences = list(link?.occurrenceIds || link?.occurrence_ids).map(String);
+        const targetScope = existingTargetOccurrences.length
+          ? existingTargetOccurrences
+          : list(candidateOccurrenceIds).map(String);
+        for (const occurrenceId of targetScope) {
+          selected.add(occurrenceId);
+        }
+      }
+      continue;
+    }
     if (priorPersonId && linkedPersonId === String(priorPersonId)) {
       if (preservePriorUnselected && state === "confirmed") {
         priorWasConfirmed = true;

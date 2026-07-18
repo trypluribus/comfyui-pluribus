@@ -23,7 +23,7 @@ import {
 } from "./identity-analysis.js";
 import { draftPersonCards, loadPersonDrafts } from "./person-drafts.js";
 import { sourceDisplayLabel, sourceMedia, sourceRecordsForScan } from "./source-records.js";
-import { getState } from "./store.js";
+import { getState, projectPeople } from "./store.js";
 
 const ONE_OFF_PAGE_SIZE = 24;
 
@@ -71,6 +71,107 @@ export function identitySuggestionProvenance(candidate = {}) {
     badge: "Name from project metadata",
     description: "The working name or role came from project metadata. Visual analysis only grouped the appearances.",
   };
+}
+
+function normalizedRepresentative(person = {}, fallback = {}) {
+  const direct = person?.representative;
+  if (direct && typeof direct === "object") {
+    return {
+      role: direct.role || fallback?.role || "manager",
+      name: direct.name || fallback?.name || "",
+      email: direct.email || fallback?.email || "",
+    };
+  }
+  const name = person?.representativeName || person?.representative_name || fallback?.name || "";
+  const email = person?.representativeEmail || person?.representative_email || fallback?.email || "";
+  if (!name && !email && !fallback?.role) return undefined;
+  return {
+    role: person?.representativeRole || person?.representative_role || fallback?.role || "manager",
+    name,
+    email,
+  };
+}
+
+function existingPersonChoice(person = {}, draft = null) {
+  const canonicalPersonId = String(
+    person?.id
+    || person?.talentRecordId
+    || person?.talent_record_id
+    || draft?.canonicalPersonId
+    || ""
+  );
+  const draftId = String(draft?.draftId || "");
+  const personId = canonicalPersonId || draftId;
+  if (!personId) return null;
+  const representative = normalizedRepresentative(
+    person,
+    draft?.representative || {}
+  );
+  return {
+    choiceId: `${canonicalPersonId ? "project" : "local"}:${personId}`,
+    personId,
+    canonicalPersonId,
+    draftId,
+    displayName: person?.displayName || person?.name || draft?.displayName || "Unnamed person",
+    role: person?.role || draft?.role || "",
+    talentEmail: person?.talentEmail || person?.talent_email || draft?.talentEmail || "",
+    representative,
+    notes: draft?.notes || "",
+    sourceRefs: [...(draft?.sourceRefs || [])],
+    draft,
+    scope: canonicalPersonId ? "project" : "workflow",
+  };
+}
+
+export function existingIdentityChoices(personDrafts = [], canonicalPeople = []) {
+  const drafts = Array.isArray(personDrafts) ? personDrafts : [];
+  const people = Array.isArray(canonicalPeople) ? canonicalPeople : [];
+  const draftByCanonicalId = new Map(
+    drafts
+      .filter((draft) => draft?.canonicalPersonId)
+      .map((draft) => [String(draft.canonicalPersonId), draft])
+  );
+  const consumedDraftIds = new Set();
+  const seenPersonIds = new Set();
+  const choices = [];
+
+  for (const person of people) {
+    const canonicalPersonId = String(
+      person?.id || person?.talentRecordId || person?.talent_record_id || ""
+    );
+    if (!canonicalPersonId || seenPersonIds.has(canonicalPersonId)) continue;
+    const draft = draftByCanonicalId.get(canonicalPersonId) || null;
+    const choice = existingPersonChoice(person, draft);
+    if (!choice) continue;
+    choices.push(choice);
+    seenPersonIds.add(choice.personId);
+    if (draft?.draftId) consumedDraftIds.add(String(draft.draftId));
+  }
+
+  for (const draft of drafts) {
+    const draftId = String(draft?.draftId || "");
+    if (!draftId || consumedDraftIds.has(draftId)) continue;
+    const choice = existingPersonChoice({}, draft);
+    if (!choice || seenPersonIds.has(choice.personId)) continue;
+    choices.push(choice);
+    seenPersonIds.add(choice.personId);
+  }
+
+  return choices.sort((left, right) =>
+    left.displayName.localeCompare(right.displayName, undefined, { sensitivity: "base" })
+      || left.personId.localeCompare(right.personId)
+  );
+}
+
+export function existingIdentityChoiceForId(choices = [], personId = "") {
+  const wanted = String(personId || "");
+  if (!wanted) return null;
+  return (choices || []).find((choice) =>
+    [choice.personId, choice.canonicalPersonId, choice.draftId]
+      .filter(Boolean)
+      .map(String)
+      .includes(wanted)
+  ) || null;
 }
 
 export function representativeOccurrences(occurrences = [], limit = 3) {
@@ -1008,6 +1109,14 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     : (state.personDrafts || []).find((draft) =>
         draft.draftId === explicitPersonId || draft.canonicalPersonId === explicitPersonId
       ) || draftForCandidate(candidate, state, explicitPersonId);
+  const savedPeople = existingIdentityChoices(state.personDrafts, projectPeople());
+  const initialSavedPerson = newPerson
+    ? null
+    : existingIdentityChoiceForId(
+        savedPeople,
+        explicitPersonId || existing?.canonicalPersonId || existing?.draftId || ""
+      );
+  let selectedSavedPerson = initialSavedPerson;
   const allOccurrences = candidateOccurrences(candidate, identity);
   const lockedOccurrenceIds = confirmedOccurrenceIds(candidate, state, explicitPersonId);
   const lockedOccurrenceOwners = new Map();
@@ -1043,7 +1152,8 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       ? "false_positive"
       : "same";
   const storedOccurrenceValues = explicitLink?.occurrenceIds ?? explicitLink?.occurrence_ids;
-  const existingSourceRefs = new Set(existing?.sourceRefs || []);
+  const initialPerson = initialSavedPerson || existing;
+  const existingSourceRefs = new Set(initialPerson?.sourceRefs || []);
   const occurrenceIds = Array.isArray(storedOccurrenceValues)
     ? new Set(storedOccurrenceValues.map(String).filter((value) => !lockedOccurrenceIds.has(value)))
     : new Set(allOccurrences.filter((occurrence) =>
@@ -1051,13 +1161,13 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
           && (existingSourceRefs.size ? existingSourceRefs.has(occurrence.sourceRef) : !occurrence.ambiguous)
       ).map((occurrence) => String(occurrence.occurrenceId)));
   const form = {
-    name: existing?.displayName || (newPerson ? "" : candidate.suggestedName) || "",
-    role: existing?.role || (newPerson ? "" : candidate.suggestedRole) || "",
-    talentEmail: existing?.talentEmail || "",
-    repRole: existing?.representative?.role || "manager",
-    repName: existing?.representative?.name || "",
-    repEmail: existing?.representative?.email || "",
-    notes: existing?.notes || "",
+    name: initialPerson?.displayName || (newPerson ? "" : candidate.suggestedName) || "",
+    role: initialPerson?.role || (newPerson ? "" : candidate.suggestedRole) || "",
+    talentEmail: initialPerson?.talentEmail || "",
+    repRole: initialPerson?.representative?.role || "manager",
+    repName: initialPerson?.representative?.name || "",
+    repEmail: initialPerson?.representative?.email || "",
+    notes: initialPerson?.notes || "",
     occurrenceIds,
     sourceRefs: new Set(groups.filter((group) =>
       group.occurrences.length === 0 && (!existing || existingSourceRefs.has(group.sourceRef))
@@ -1074,6 +1184,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
   };
 
   function resetPersonFieldsForDifferentPerson() {
+    selectedSavedPerson = null;
     Object.assign(form, {
       name: "",
       role: "",
@@ -1086,7 +1197,20 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
   }
 
   function restoreInitialPersonFields() {
+    selectedSavedPerson = initialSavedPerson;
     Object.assign(form, initialPersonFields);
+  }
+
+  function fillPersonFields(person) {
+    Object.assign(form, {
+      name: person?.displayName || "",
+      role: person?.role || "",
+      talentEmail: person?.talentEmail || "",
+      repRole: person?.representative?.role || "manager",
+      repName: person?.representative?.name || "",
+      repEmail: person?.representative?.email || "",
+      notes: person?.notes || "",
+    });
   }
 
   function syncSourceRefsFromOccurrences() {
@@ -1205,15 +1329,42 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     const nameInput = input(form.name, "Full name or character name", "text", updateFromInput("name"));
     nameInput.setAttribute("data-autofocus", "true");
     const roleInput = input(form.role, "Role in this project", "text", updateFromInput("role"));
+    const savedPersonPicker = el(
+      "select",
+      {
+        class: "plb-input",
+        "aria-label": "Use an existing project person",
+        onchange: (event) => {
+          selectedSavedPerson = savedPeople.find((person) => person.choiceId === event.target.value) || null;
+          if (selectedSavedPerson) fillPersonFields(selectedSavedPerson);
+          else if (decision === "different") resetPersonFieldsForDifferentPerson();
+          else restoreInitialPersonFields();
+          renderDialog();
+        },
+      },
+      el("option", {
+        value: "",
+        text: initialSavedPerson && decision !== "different"
+          ? "Keep the current person"
+          : "Create or identify a new person",
+      }),
+      savedPeople.map((person) => el("option", {
+        value: person.choiceId,
+        text: `${person.displayName}${person.role ? ` · ${person.role}` : ""}`,
+      }))
+    );
+    savedPersonPicker.value = selectedSavedPerson?.choiceId || "";
     const provenance = identitySuggestionProvenance(candidate);
     const usesProjectSuggestion = !newPerson
+      && !selectedSavedPerson
       && decision !== "different"
       && decision !== "false_positive"
       && Boolean(candidate.suggestedName || candidate.suggestedRole)
       && (!candidate.suggestedName || form.name === candidate.suggestedName);
     const workingHeading = decision === "false_positive"
       ? "Correct false detections"
-      : form.name
+      : selectedSavedPerson?.displayName
+      || form.name
       || (usesProjectSuggestion ? candidate.suggestedName : "")
       || (newPerson ? "New person from remaining appearances" : "Unresolved person");
     const evidence = candidate.evidence.length ? candidate.evidence : [
@@ -1227,7 +1378,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       el(
         "div",
         { class: "plb-identity-form" },
-        metaLabel(decision === "false_positive" ? "Detector correction" : usesProjectSuggestion ? provenance.label : existing ? "Reviewed project person" : "Unresolved person", true),
+        metaLabel(decision === "false_positive" ? "Detector correction" : selectedSavedPerson ? "Saved project person" : usesProjectSuggestion ? provenance.label : existing ? "Reviewed project person" : "Unresolved person", true),
         el("h2", { text: workingHeading }),
         el("p", { class: "plb-stage-copy", text: "Confirm whether these visual appearances belong together. Grouping is project-scoped and does not establish identity or permission." }),
         el(
@@ -1246,7 +1397,23 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
               el("strong", { text: "Scoped detector correction" }),
               el("span", { text: "Choose only crops that do not depict a real person. This does not mark the whole source as person-free, and changed media will reopen review." })
             )
-          : formField("Name", nameInput, usesProjectSuggestion && candidate.suggestedName ? provenance.badge : "Add a working name; contact details can wait"),
+          : savedPeople.length
+            ? formField(
+                "Use a saved person",
+                savedPersonPicker,
+                "Choose explicitly when you recognize this person. Pluribus never merges identities automatically."
+              )
+            : null,
+        decision !== "false_positive" && selectedSavedPerson
+          ? el(
+              "div",
+              { class: "plb-provenance-note plb-existing-person-note" },
+              metaLabel("Existing identity selected"),
+              el("strong", { text: selectedSavedPerson.displayName }),
+              el("span", { text: "Saving will assign only the appearances you select to this saved person. It will not create a duplicate identity." })
+            )
+          : null,
+        decision === "false_positive" ? null : formField("Name", nameInput, usesProjectSuggestion && candidate.suggestedName ? provenance.badge : "Add a working name; contact details can wait"),
         decision === "false_positive" ? null : formField("Role", roleInput),
         usesProjectSuggestion
           ? el("div", { class: "plb-provenance-note" }, metaLabel("Working-name provenance"), el("strong", { text: provenance.label }), el("span", { text: provenance.description }))
@@ -1686,9 +1853,40 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
   }
 
   function saveButton() {
-    const replacingExistingPerson = decision === "different" && Boolean(existing);
+    const targetDraft = selectedSavedPerson?.draft || (decision === "different" ? null : existing);
+    const draftId = targetDraft?.draftId || pendingNewDraftId;
+    const canonicalPersonId = selectedSavedPerson?.canonicalPersonId || targetDraft?.canonicalPersonId || "";
+    const targetPersonId = selectedSavedPerson?.personId || canonicalPersonId || draftId;
+    const initialPersonIds = new Set([
+      explicitPersonId,
+      existing?.draftId,
+      existing?.canonicalPersonId,
+      initialSavedPerson?.personId,
+      initialSavedPerson?.draftId,
+      initialSavedPerson?.canonicalPersonId,
+    ].filter(Boolean).map(String));
+    const targetPersonIds = new Set([
+      targetPersonId,
+      targetDraft?.draftId,
+      targetDraft?.canonicalPersonId,
+      selectedSavedPerson?.personId,
+      selectedSavedPerson?.draftId,
+      selectedSavedPerson?.canonicalPersonId,
+    ].filter(Boolean).map(String));
+    const retainsInitialIdentity = [...initialPersonIds].some((personId) => targetPersonIds.has(personId));
+    const replacingExistingPerson = initialPersonIds.size > 0 && !retainsInitialIdentity;
+    const confirmingSavedPerson = Boolean(
+      selectedSavedPerson
+      && selectedSavedPerson.choiceId !== initialSavedPerson?.choiceId
+    );
     const save = button(
-      replacingExistingPerson ? "Confirm different person" : existing ? "Save person" : "Confirm person",
+      confirmingSavedPerson
+        ? "Confirm existing person"
+        : replacingExistingPerson
+          ? "Confirm different person"
+          : existing
+            ? "Save person"
+            : "Confirm person",
       "primary",
       async () => {
         if (!form.name.trim()) {
@@ -1703,18 +1901,23 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
           toast("Choose at least one source for this person.");
           return;
         }
+        if (
+          confirmingSavedPerson
+          && !globalThis.confirm(
+            `Assign the selected appearances to ${selectedSavedPerson.displayName}? This will use the existing identity instead of creating a duplicate.`
+          )
+        ) return;
         if (!(await ensureReviewContextCurrent())) return;
         save.disabled = true;
         try {
           const representative = form.repName.trim() || form.repEmail.trim()
             ? { role: form.repRole, name: form.repName.trim() || undefined, email: form.repEmail.trim() || undefined }
             : undefined;
-          const draftId = replacingExistingPerson ? pendingNewDraftId : existing?.draftId || pendingNewDraftId;
           const sourceRefs = mergeIdentityDraftSourceRefs(
-            existing?.sourceRefs || [],
+            targetDraft?.sourceRefs || [],
             candidateSourceRefs,
             [...form.sourceRefs],
-            Boolean(existing) && !replacingExistingPerson
+            Boolean(targetDraft)
           );
           await saveLocalPersonDraft(workflowRef, {
             draftId,
@@ -1724,7 +1927,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
             representative,
             notes: form.notes.trim() || undefined,
             sourceRefs,
-            canonicalPersonId: replacingExistingPerson ? undefined : existing?.canonicalPersonId || undefined,
+            canonicalPersonId: canonicalPersonId || undefined,
           });
           await loadPersonDrafts(workflowRef, openedScanEpoch);
           if (!reviewContextIsCurrent()) {
@@ -1740,16 +1943,18 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
                 save.disabled = false;
                 return;
               }
-              const priorPersonId = explicitPersonId || existing?.draftId || "";
+              const priorPersonId = explicitPersonId || existing?.canonicalPersonId || existing?.draftId || "";
               const links = identityLinksWithConfirmedDecision(
                 snapshot.links,
                 candidate.candidateId,
                 {
-                  personId: draftId,
+                  personId: targetPersonId,
                   displayName: form.name.trim(),
                   occurrenceIds: [...form.occurrenceIds],
                   priorPersonId,
                   preservePriorUnselected: replacingExistingPerson,
+                  preserveTargetExisting: confirmingSavedPerson,
+                  targetPersonIds: [...targetPersonIds],
                   candidateOccurrenceIds: allOccurrences.map((occurrence) => String(occurrence.occurrenceId)),
                 }
               );
@@ -1766,7 +1971,9 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
           }
           close();
           toast(
-            replacingExistingPerson
+            confirmingSavedPerson
+              ? `Appearances assigned to ${selectedSavedPerson.displayName}. No duplicate person was created.`
+              : replacingExistingPerson
               ? "Different person confirmed. The original person record was kept."
               : existing
                 ? "Person updated."
