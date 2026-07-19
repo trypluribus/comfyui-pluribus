@@ -584,6 +584,49 @@ def test_workspace_project_and_person_proxies_send_only_contract_fields(tmp_path
     }
 
 
+def test_project_person_update_is_patch_scoped_and_cannot_write_talent_profile(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(200, {"person": {"id": "person-1"}})])
+
+    status, _ = run(
+        remote.update_project_person(
+            path,
+            "project-1",
+            "person-1",
+            {
+                "displayName": "Alex Person",
+                "role": "Lead",
+                "talentEmail": "must-not-pass@example.com",
+                "sourceKey": "/private/alex.png",
+                "representative": {
+                    "role": "manager",
+                    "name": "Riley Manager",
+                    "email": "riley@example.com",
+                    "nodeId": "44",
+                },
+            },
+            fetch,
+        )
+    )
+
+    assert status == 200
+    assert fetch.calls[0] == {
+        "method": "PATCH",
+        "url": "https://x/api/plugin/projects/project-1/people/person-1",
+        "payload": {
+            "displayName": "Alex Person",
+            "role": "Lead",
+            "representative": {
+                "role": "manager",
+                "name": "Riley Manager",
+                "email": "riley@example.com",
+            },
+        },
+        "token": "plt_token",
+    }
+
+
 def test_project_sync_can_be_scoped_to_active_workflow(tmp_path):
     path = connection_path(tmp_path)
     remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
@@ -608,6 +651,7 @@ def test_source_links_proxy_strips_paths_prompts_and_node_ids(tmp_path):
     body = {
         "workflowRef": workflow_ref,
         "workflowKind": "storyboard",
+        "baseManifestVersion": 3,
         "graphHash": "a" * 64,
         "sources": [
             {
@@ -630,6 +674,7 @@ def test_source_links_proxy_strips_paths_prompts_and_node_ids(tmp_path):
     assert status == 200
     payload = fetch.calls[0]["payload"]
     assert payload["workflowRef"] == workflow_ref
+    assert payload["baseManifestVersion"] == 3
     assert payload["graphHash"] == "a" * 64
     assert payload["sources"][0]["operations"] == [{"classType": "IPAdapter"}]
     serialized = json.dumps(payload)
@@ -637,6 +682,21 @@ def test_source_links_proxy_strips_paths_prompts_and_node_ids(tmp_path):
     assert "put Alex" not in serialized
     assert "node_id" not in serialized
     assert "sourceNodeId" not in serialized
+
+
+def test_source_links_proxy_requires_manifest_base_version(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([])
+    body = {
+        "workflowRef": str(uuid.uuid4()),
+        "workflowKind": "storyboard",
+        "sources": [],
+    }
+
+    with pytest.raises(ValueError, match="baseManifestVersion"):
+        run(remote.put_project_source_links(path, "project-1", body, fetch))
+    assert fetch.calls == []
 
 
 def test_use_proxy_rejects_local_graph_material_without_network_call(tmp_path):

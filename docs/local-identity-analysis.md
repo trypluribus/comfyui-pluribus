@@ -4,6 +4,26 @@ Pluribus can optionally turn graph sources into a producer-reviewable set of
 likely people. The analysis is project scoped: it clusters appearances within
 the current workflow and never performs an open-world identity search.
 
+## Identity demo install (unreleased `main`)
+
+The people-first identity demo is not included in the supported
+`v0.4.0-rc.2` tag. For a controlled demo, start from a clean `main` clone and
+install the optional dependencies into the same Python environment that starts
+ComfyUI:
+
+```bash
+cd /path/to/ComfyUI/custom_nodes
+git clone --branch main --depth 1 \
+  https://github.com/trypluribus/comfyui-pluribus
+/path/to/ComfyUI/.venv/bin/python -m pip install \
+  -r /path/to/ComfyUI/custom_nodes/comfyui-pluribus/requirements-identity.txt
+```
+
+Restart ComfyUI, open **Pluribus**, and choose **Install local models**. Then
+load the demo workflow and video and choose **Find people**. Keep this install
+separate from a supported-release rehearsal; a `main` commit is not a versioned
+release.
+
 ## Privacy and decision boundary
 
 - Images and sampled video frames stay on the ComfyUI machine.
@@ -115,6 +135,18 @@ dominant repeated candidate. `suggestionSource` records `source_label`.
 links. A confirmed link requires an opaque `personId` and an `occurrenceIds`
 list, which can select only some appearances in a mixed cluster. Every ID must
 have been minted for that candidate and job.
+
+The People review UI exposes the same occurrence-level contract. A producer can
+expand every source group, deselect individual frames, and leave the unselected
+appearances unresolved. They can then review the remaining appearances as a
+different person, assign them to a saved workflow or project person, or leave
+them in the review queue.
+
+Saved-person assignment is always explicit. The producer chooses an existing
+person and confirms that assignment; the plugin never merges identities
+automatically. When a local draft already maps to a canonical project person,
+the picker presents one saved identity and preserves that canonical mapping
+instead of creating another person record.
 
 Link writes use an optimistic revision so two open panels cannot silently
 overwrite one another:

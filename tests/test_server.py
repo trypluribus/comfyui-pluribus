@@ -45,6 +45,9 @@ class FakeRoutes:
     def put(self, path):
         return self._register("PUT", path)
 
+    def patch(self, path):
+        return self._register("PATCH", path)
+
     def delete(self, path):
         return self._register("DELETE", path)
 
@@ -129,6 +132,7 @@ def test_every_state_changing_route_uses_the_same_origin_guard():
     source = inspect.getsource(register_routes)
     assert "@routes.post(" not in source
     assert "@routes.put(" not in source
+    assert "@routes.patch(" not in source
     assert "@routes.delete(" not in source
 
 
@@ -924,6 +928,7 @@ def test_source_links_route_sends_only_opaque_manifest(tmp_path, monkeypatch):
                 {
                     "workflowRef": workflow_ref,
                     "workflowKind": "storyboard",
+                    "baseManifestVersion": 0,
                     "sources": [
                         {
                             "sourceRef": source_ref,
@@ -946,6 +951,7 @@ def test_source_links_route_sends_only_opaque_manifest(tmp_path, monkeypatch):
 
     assert response.status == 200
     assert captured["project_id"] == "project-1"
+    assert captured["body"]["baseManifestVersion"] == 0
     outbound = json.dumps(captured["body"])
     assert "/private" not in outbound
     assert "private prompt" not in outbound
@@ -957,6 +963,61 @@ def test_source_links_route_sends_only_opaque_manifest(tmp_path, monkeypatch):
         run(resolve(FakeRequest({"localWorkflowKey": "private-workflow"})))
     )
     assert synced_binding["manifestHash"] == captured["body"]["manifestHash"]
+
+
+def test_project_person_patch_route_forwards_current_project_identifiers(
+    tmp_path, monkeypatch
+):
+    prompt_server = FakePromptServer()
+    captured = {}
+
+    async def update_project_person(
+        _connection_path, project_id, person_id, body
+    ):
+        captured.update(
+            {"project_id": project_id, "person_id": person_id, "body": body}
+        )
+        return 200, {"person": {"id": person_id}}
+
+    monkeypatch.setattr(remote, "update_project_person", update_project_person)
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        connection_path=str(tmp_path / "connection.json"),
+        bindings_path=str(tmp_path / "bindings.json"),
+    )
+    handler = prompt_server.routes.handlers[
+        ("PATCH", "/pluribus/projects/{project_id}/people/{person_id}")
+    ]
+
+    response = run(
+        handler(
+            FakeRequest(
+                {
+                    "displayName": "Alex Person",
+                    "representative": {
+                        "role": "manager",
+                        "email": "rep@example.com",
+                    },
+                },
+                {"project_id": "project-1", "person_id": "person-1"},
+            )
+        )
+    )
+
+    assert response.status == 200
+    assert captured == {
+        "project_id": "project-1",
+        "person_id": "person-1",
+        "body": {
+            "displayName": "Alex Person",
+            "representative": {
+                "role": "manager",
+                "email": "rep@example.com",
+            },
+        },
+    }
 
 
 def test_workspace_project_routes_are_registered(tmp_path):
@@ -973,6 +1034,7 @@ def test_workspace_project_routes_are_registered(tmp_path):
         ("POST", "/pluribus/projects"),
         ("GET", "/pluribus/projects/{project_id}"),
         ("POST", "/pluribus/projects/{project_id}/people"),
+        ("PATCH", "/pluribus/projects/{project_id}/people/{person_id}"),
         ("PUT", "/pluribus/projects/{project_id}/source-links"),
         ("PUT", "/pluribus/projects/{project_id}/use"),
         ("POST", "/pluribus/projects/{project_id}/confirmation-requests"),

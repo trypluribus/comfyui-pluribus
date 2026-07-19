@@ -66,6 +66,7 @@ def test_source_manifest_ignores_graph_hash_for_rights_hash_and_strips_local_fie
     base = {
         "workflowRef": workflow["workflowRef"],
         "workflowKind": "storyboard",
+        "baseManifestVersion": 0,
         "graphHash": GRAPH_HASH,
         "sources": [
             {
@@ -93,6 +94,7 @@ def test_source_manifest_ignores_graph_hash_for_rights_hash_and_strips_local_fie
     )
 
     assert first["manifestHash"] == changed_graph["manifestHash"]
+    assert first["baseManifestVersion"] == 0
     assert changed_graph["graphHash"] == "b" * 64
     changed_kind = store.source_links_payload(
         workflow["workflowRef"],
@@ -126,6 +128,13 @@ def test_source_manifest_ignores_graph_hash_for_rights_hash_and_strips_local_fie
     synced = store.record_source_links(workflow["workflowRef"], "project-1", first)
     assert synced["manifestHash"] == first["manifestHash"]
 
+    with pytest.raises(ValueError, match="baseManifestVersion"):
+        store.source_links_payload(
+            workflow["workflowRef"],
+            "project-1",
+            {key: value for key, value in base.items() if key != "baseManifestVersion"},
+        )
+
 
 def test_source_ref_must_have_been_minted_for_workflow(tmp_path):
     store = BindingStore(str(tmp_path / "bindings.json"))
@@ -136,6 +145,7 @@ def test_source_ref_must_have_been_minted_for_workflow(tmp_path):
             "project-1",
             {
                 "workflowKind": "other",
+                "baseManifestVersion": 0,
                 "sources": [
                     {
                         "sourceRef": "c" * 64,
@@ -160,6 +170,7 @@ def test_source_manifest_preserves_bounded_operation_input_roles(tmp_path):
         "project-1",
         {
             "workflowKind": "production",
+            "baseManifestVersion": 0,
             "sources": [
                 {
                     "sourceRef": source["sourceRef"],
@@ -432,6 +443,7 @@ def test_local_person_draft_pii_never_enters_outbound_source_manifest(tmp_path):
         "project-1",
         {
             "workflowKind": "storyboard",
+            "baseManifestVersion": 0,
             "sources": [
                 {
                     "sourceRef": source_ref,
@@ -457,6 +469,7 @@ def test_local_person_draft_pii_never_enters_outbound_source_manifest(tmp_path):
     assert set(outbound) == {
         "workflowRef",
         "workflowKind",
+        "baseManifestVersion",
         "sources",
         "manifestHash",
     }
