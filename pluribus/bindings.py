@@ -77,6 +77,12 @@ def _require_identifier(value: object, field: str) -> str:
     return normalized
 
 
+def _require_nonnegative_int(value: object, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{field} must be a non-negative integer.")
+    return value
+
+
 def _optional_string(
     value: object,
     field: str,
@@ -587,6 +593,9 @@ class BindingStore:
                 workflow_kind=kind,
                 graph_hash=graph_hash,
                 sources=body.get("sources"),
+            )
+            payload["baseManifestVersion"] = _require_nonnegative_int(
+                body.get("baseManifestVersion"), "baseManifestVersion"
             )
             known_source_refs = set(binding.get("source_refs", {}).values())
             for source in payload["sources"]:

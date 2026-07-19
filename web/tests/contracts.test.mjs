@@ -24,6 +24,7 @@ import {
   canonicalRightsManifest,
   manifestOverridesForLocalReviews,
   manifestSourcesForScan,
+  mergeManifestOverrideMaps,
   normalizedOperations,
   rightsManifestHash,
 } from "../manifest.js";
@@ -74,12 +75,15 @@ import {
   filmstripColumns,
   identityReviewSummary,
   identitySuggestionProvenance,
+  existingIdentityChoiceForId,
+  existingIdentityChoices,
   manualIdentityDrafts,
   mergeIdentityDraftSourceRefs,
   progressDetailLabel,
   progressPhaseLabel,
   progressValue,
   representativeOccurrences,
+  sourceLinkOverridesForExistingPerson,
   unresolvedManualSourceIssues,
 } from "../identity-view.js";
 import {
@@ -899,11 +903,15 @@ test("rescan and workflow-kind changes persist the complete current manifest", a
   assert.match(panel, /await syncCurrentRightsManifest\(\)/);
   assert.match(project, /await syncCurrentRightsManifest\(\)/);
   assert.match(sync, /manifestSourcesForScan/);
-  assert.match(sync, /let syncRequestId = 0/);
-  assert.match(sync, /let syncBarrier = Promise\.resolve\(\)/);
-  assert.match(sync, /latest\.scanEpoch === scanEpoch/);
-  assert.match(sync, /if \(!contextIsCurrent\(\)\) return null/);
+  assert.match(sync, /const pendingSyncBatches = \[\]/);
+  assert.match(sync, /mergeManifestOverrideMaps/);
+  assert.match(sync, /pending\.waiters\.push/);
+  assert.match(sync, /latest\.scanEpoch === snapshot\.scanEpoch/);
+  assert.match(sync, /throw syncContextChangedError\(\)/);
   assert.match(sync, /saveProjectSourceLinks/);
+  assert.match(sync, /baseManifestVersion/);
+  assert.match(sync, /rights_manifest_sync_in_progress/);
+  assert.match(sync, /await getProject\(snapshot\.projectId, snapshot\.workflowRef\)/);
   assert.match(request, /scanMatchesCurrentWorkflow/);
   assert.match(use, /scanMatchesCurrentWorkflow/);
 });
@@ -1126,6 +1134,51 @@ test("shared scene sources never confirm two identity candidates by source overl
   );
 });
 
+test("saved identity choices reuse canonical project people without duplicating promoted drafts", () => {
+  const canonicalPersonId = "22222222-2222-4222-8222-222222222222";
+  const mappedDraft = {
+    draftId: "11111111-1111-4111-8111-111111111111",
+    canonicalPersonId,
+    displayName: "Local Layla",
+    role: "Lead",
+    representative: { role: "agent", email: "agent@example.com" },
+    sourceRefs: ["source-a"],
+  };
+  const localDraft = {
+    draftId: "33333333-3333-4333-8333-333333333333",
+    displayName: "Background performer",
+    sourceRefs: ["source-b"],
+  };
+  const choices = existingIdentityChoices(
+    [mappedDraft, localDraft],
+    [
+      { id: canonicalPersonId, displayName: "Layla Hassan", role: "Lead actor" },
+      { id: "44444444-4444-4444-8444-444444444444", displayName: "Nisreen Salem" },
+    ]
+  );
+
+  assert.equal(choices.length, 3);
+  const canonical = existingIdentityChoiceForId(choices, canonicalPersonId);
+  assert.equal(canonical.displayName, "Layla Hassan");
+  assert.equal(canonical.personId, canonicalPersonId);
+  assert.equal(canonical.draftId, mappedDraft.draftId);
+  assert.deepEqual(canonical.sourceRefs, ["source-a"]);
+  assert.equal(
+    existingIdentityChoiceForId(choices, mappedDraft.draftId),
+    canonical,
+    "the local and canonical ids resolve to one saved identity choice"
+  );
+  assert.equal(existingIdentityChoiceForId(choices, localDraft.draftId).scope, "workflow");
+  const canonicalWithoutDraft = existingIdentityChoiceForId(
+    choices,
+    "44444444-4444-4444-8444-444444444444"
+  );
+  assert.equal(canonicalWithoutDraft.displayName, "Nisreen Salem");
+  assert.equal(canonicalWithoutDraft.draft, null);
+  assert.equal(canonicalWithoutDraft.canonicalPersonId, canonicalWithoutDraft.personId);
+  assert.equal(existingIdentityChoiceForId(choices, ""), null);
+});
+
 test("candidate links confirm only the appearances explicitly reviewed", () => {
   const identity = normalizeIdentityPayload({
     candidates: [{ candidateId: "candidate-a", occurrenceIds: ["one", "two", "three"] }],
@@ -1261,6 +1314,80 @@ test("partial different-person reassignment preserves the prior person's other a
   );
 });
 
+test("assigning remaining appearances to a saved person preserves their earlier assignments", () => {
+  const personId = "22222222-2222-4222-8222-222222222222";
+  const links = identityLinksWithConfirmedDecision(
+    [{
+      candidateId: "candidate-a",
+      personId,
+      state: "confirmed",
+      occurrenceIds: ["a"],
+    }],
+    "candidate-a",
+    {
+      personId,
+      displayName: "Layla",
+      occurrenceIds: ["b"],
+      preserveTargetExisting: true,
+      candidateOccurrenceIds: ["a", "b", "c"],
+    }
+  );
+  assert.deepEqual(links, [{
+    candidateId: "candidate-a",
+    personId,
+    state: "confirmed",
+    displayName: "Layla",
+    occurrenceIds: ["b", "a"],
+  }]);
+
+  const legacyCandidateWide = identityLinksWithConfirmedDecision(
+    [{
+      candidateId: "candidate-a",
+      personId,
+      state: "confirmed",
+    }],
+    "candidate-a",
+    {
+      personId,
+      displayName: "Layla",
+      occurrenceIds: ["b"],
+      preserveTargetExisting: true,
+      candidateOccurrenceIds: ["a", "b", "c"],
+    }
+  );
+  assert.deepEqual(legacyCandidateWide[0].occurrenceIds, ["b", "a", "c"]);
+});
+
+test("saved canonical identity consolidates its promoted local draft alias", () => {
+  const draftId = "11111111-1111-4111-8111-111111111111";
+  const canonicalPersonId = "22222222-2222-4222-8222-222222222222";
+  const links = identityLinksWithConfirmedDecision(
+    [{
+      candidateId: "candidate-a",
+      personId: draftId,
+      state: "confirmed",
+      occurrenceIds: ["a"],
+    }],
+    "candidate-a",
+    {
+      personId: canonicalPersonId,
+      targetPersonIds: [draftId, canonicalPersonId],
+      displayName: "Layla",
+      occurrenceIds: ["b"],
+      preserveTargetExisting: true,
+      candidateOccurrenceIds: ["a", "b", "c"],
+    }
+  );
+
+  assert.deepEqual(links, [{
+    candidateId: "candidate-a",
+    personId: canonicalPersonId,
+    state: "confirmed",
+    displayName: "Layla",
+    occurrenceIds: ["b", "a"],
+  }]);
+});
+
 test("partial not-sure review preserves the prior person's other confirmed appearances", () => {
   const priorPersonId = "22222222-2222-4222-8222-222222222222";
   const links = identityLinksWithUnresolvedDecision(
@@ -1363,6 +1490,84 @@ test("editing one visual candidate preserves a person's unrelated source assignm
     ),
     ["candidate-a"]
   );
+});
+
+test("assigning an existing person emits add and remove deltas for the full candidate scope", () => {
+  const personId = "22222222-2222-4222-8222-222222222222";
+  const overrides = sourceLinkOverridesForExistingPerson(
+    ["source-c", "source-b", "source-a", "source-a"],
+    ["source-b", "source-a"],
+    personId
+  );
+
+  assert.deepEqual([...overrides.entries()], [
+    ["source-a", { addTalentRecordIds: [personId] }],
+    ["source-b", { addTalentRecordIds: [personId] }],
+    ["source-c", { removeTalentRecordIds: [personId] }],
+  ]);
+});
+
+test("person source deltas preserve concurrent people and reopen an emptied source", () => {
+  const sourceA = "a".repeat(64);
+  const sourceB = "b".repeat(64);
+  const personId = "22222222-2222-4222-8222-222222222222";
+  const otherPersonId = "33333333-3333-4333-8333-333333333333";
+  const overrides = sourceLinkOverridesForExistingPerson(
+    [sourceA, sourceB],
+    [sourceA],
+    personId
+  );
+  const persons = [sourceA, sourceB].map((sourceRef, index) => ({
+    source_kind: "reference",
+    source_key: `source-${index}`,
+    source_node_id: String(index),
+    ops: [{ class_type: "LoadImage" }],
+  }));
+  const refs = Object.fromEntries(persons.map((person, index) => [
+    [person.source_kind, person.source_key, person.source_node_id].join("|"),
+    index === 0 ? sourceA : sourceB,
+  ]));
+  const sources = manifestSourcesForScan(persons, refs, [{
+    sourceRef: sourceA,
+    sourceKind: "reference",
+    disposition: "linked",
+    talentRecordIds: [otherPersonId],
+    operations: [],
+  }, {
+    sourceRef: sourceB,
+    sourceKind: "reference",
+    disposition: "linked",
+    talentRecordIds: [personId],
+    operations: [],
+  }], overrides);
+
+  assert.deepEqual(sources[0].talentRecordIds, [personId, otherPersonId].sort());
+  assert.equal(sources[0].disposition, "linked");
+  assert.deepEqual(sources[1].talentRecordIds, []);
+  assert.equal(sources[1].disposition, "review_required");
+});
+
+test("overlapping manifest sync deltas coalesce without dropping either identity review", () => {
+  const sourceA = "a".repeat(64);
+  const sourceB = "b".repeat(64);
+  const personA = "22222222-2222-4222-8222-222222222222";
+  const personB = "33333333-3333-4333-8333-333333333333";
+  const first = new Map([
+    [sourceA, { addTalentRecordIds: [personA] }],
+    [sourceB, { removeTalentRecordIds: [personA] }],
+  ]);
+  const second = new Map([
+    [sourceA, { addTalentRecordIds: [personB], removeTalentRecordIds: [personA] }],
+    [sourceB, { addTalentRecordIds: [personA] }],
+  ]);
+
+  assert.deepEqual([...mergeManifestOverrideMaps(first, second).entries()], [
+    [sourceA, {
+      addTalentRecordIds: [personB],
+      removeTalentRecordIds: [personA],
+    }],
+    [sourceB, { addTalentRecordIds: [personA] }],
+  ]);
 });
 
 test("manual no-face outcomes resolve locally and keep identified performers visible", () => {
@@ -1740,9 +1945,19 @@ test("people-first panel and review wizard expose an accessible progressive flow
   assert.match(view, /state: "rejected"/);
   assert.match(view, /persistUnresolvedDecision/);
   assert.match(view, /identityLinksWithUnresolvedDecision/);
-  assert.match(view, /replacingExistingPerson \? pendingNewDraftId/);
+  assert.match(view, /Use a saved person/);
+  assert.match(view, /Pluribus never merges identities automatically/);
+  assert.match(view, /Confirm existing person/);
+  assert.match(view, /This will use the existing identity instead of creating a duplicate/);
+  assert.match(view, /personId: targetPersonId/);
+  assert.match(view, /preserveTargetExisting: confirmingSavedPerson/);
+  assert.match(view, /canonicalPersonId: canonicalPersonId \|\| undefined/);
+  assert.match(view, /No duplicate person was created/);
   assert.match(view, /Different person confirmed\. The original person record was kept\./);
   assert.match(view, /mergeIdentityDraftSourceRefs/);
+  assert.match(view, /updateProjectPerson\(hostedProjectId, hostedPersonId/);
+  assert.match(view, /syncCurrentRightsManifest/);
+  assert.match(view, /sourceLinkOverridesForExistingPerson/);
   assert.match(view, /Scoped detector correction/);
   assert.match(view, /This does not mark the whole source as person-free/);
   assert.match(view, /persistFalsePositiveDecision/);

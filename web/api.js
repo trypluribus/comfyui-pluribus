@@ -138,7 +138,10 @@ async function requestJson(path, init = {}) {
     // Error below remains useful when an upstream proxy returned no JSON.
   }
   if (!response.ok) {
-    throw new Error(data.message || `${path} failed with ${response.status}`);
+    const error = new Error(data.message || `${path} failed with ${response.status}`);
+    error.status = response.status;
+    error.code = data.pluginCode || data.error || "";
+    throw error;
   }
   return data;
 }
@@ -176,6 +179,13 @@ export function createProjectPerson(projectId, payload) {
   return requestJson(
     `/pluribus/projects/${encodeURIComponent(projectId)}/people`,
     jsonInit("POST", payload)
+  );
+}
+
+export function updateProjectPerson(projectId, personId, payload) {
+  return requestJson(
+    `/pluribus/projects/${encodeURIComponent(projectId)}/people/${encodeURIComponent(personId)}`,
+    jsonInit("PATCH", payload)
   );
 }
 

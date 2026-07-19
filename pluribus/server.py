@@ -597,6 +597,22 @@ def register_routes(
         except ValueError as exc:
             return _error(exc)
 
+    @_mutation_route(
+        routes.patch, "/pluribus/projects/{project_id}/people/{person_id}"
+    )
+    async def project_people_patch(request):
+        try:
+            return _remote_response(
+                await remote.update_project_person(
+                    connection_path,
+                    _path(request, "project_id"),
+                    _path(request, "person_id"),
+                    await _body(request),
+                )
+            )
+        except ValueError as exc:
+            return _error(exc)
+
     @_mutation_route(routes.put, "/pluribus/projects/{project_id}/source-links")
     async def project_source_links_put(request):
         try:

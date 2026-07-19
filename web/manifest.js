@@ -50,16 +50,31 @@ export function manifestSourcesForScan(persons, sourceRefs, existingSources, ove
     if (!/^[a-f0-9]{64}$/.test(sourceRef || "")) continue;
     const existing = existingByRef.get(sourceRef) || {};
     const override = overrideByRef.get(sourceRef) || {};
-    const disposition = String(
-      override.disposition || existing.disposition || "review_required"
-    );
     const existingIds =
       existing.talentRecordIds ||
       existing.talent_record_ids ||
       [existing.talentRecordId || existing.talent_record_id].filter(Boolean);
-    const talentRecordIds = disposition === "linked"
-      ? [...new Set(override.talentRecordIds || existingIds || [])]
-      : [];
+    const hasExplicitIds = Array.isArray(override.talentRecordIds);
+    const talentRecordIds = new Set(
+      (hasExplicitIds ? override.talentRecordIds : existingIds || [])
+        .filter(Boolean)
+        .map(String)
+    );
+    for (const personId of override.removeTalentRecordIds || []) {
+      talentRecordIds.delete(String(personId));
+    }
+    for (const personId of override.addTalentRecordIds || []) {
+      if (personId) talentRecordIds.add(String(personId));
+    }
+    const hasPersonDelta = Array.isArray(override.addTalentRecordIds)
+      || Array.isArray(override.removeTalentRecordIds);
+    const disposition = String(
+      talentRecordIds.size
+        ? "linked"
+        : override.disposition
+          || (hasPersonDelta ? "review_required" : existing.disposition)
+          || "review_required"
+    );
     const prior = currentByRef.get(sourceRef);
     const operations = normalizedOperations(person);
     if (prior) {
@@ -78,12 +93,51 @@ export function manifestSourcesForScan(persons, sourceRefs, existingSources, ove
       sourceRef,
       sourceKind: person.source_kind || "unknown",
       disposition,
-      talentRecordIds,
+      talentRecordIds: disposition === "linked" ? [...talentRecordIds].sort() : [],
       operations,
     });
   }
   return [...currentByRef.values()]
     .sort((left, right) => left.sourceRef.localeCompare(right.sourceRef));
+}
+
+// Combine source-link deltas from overlapping review actions. Add/remove
+// operations are order-sensitive per person: the newest operation wins while
+// unrelated people and unrelated sources remain in the pending batch.
+export function mergeManifestOverrideMaps(previous = new Map(), incoming = new Map()) {
+  const asMap = (value) => value instanceof Map
+    ? value
+    : new Map(Object.entries(value || {}));
+  const merged = new Map(
+    [...asMap(previous)].map(([sourceRef, value]) => [String(sourceRef), { ...(value || {}) }])
+  );
+  for (const [rawSourceRef, rawIncoming] of asMap(incoming)) {
+    const sourceRef = String(rawSourceRef);
+    const prior = merged.get(sourceRef) || {};
+    const next = rawIncoming || {};
+    const value = { ...prior, ...next };
+    const hasExplicitIds = Object.prototype.hasOwnProperty.call(next, "talentRecordIds");
+    const additions = new Set(hasExplicitIds ? [] : prior.addTalentRecordIds || []);
+    const removals = new Set(hasExplicitIds ? [] : prior.removeTalentRecordIds || []);
+    for (const personId of next.removeTalentRecordIds || []) {
+      const id = String(personId || "");
+      if (!id) continue;
+      additions.delete(id);
+      removals.add(id);
+    }
+    for (const personId of next.addTalentRecordIds || []) {
+      const id = String(personId || "");
+      if (!id) continue;
+      removals.delete(id);
+      additions.add(id);
+    }
+    if (additions.size) value.addTalentRecordIds = [...additions].sort();
+    else delete value.addTalentRecordIds;
+    if (removals.size) value.removeTalentRecordIds = [...removals].sort();
+    else delete value.removeTalentRecordIds;
+    merged.set(sourceRef, value);
+  }
+  return merged;
 }
 
 export function manifestOverridesForLocalReviews(

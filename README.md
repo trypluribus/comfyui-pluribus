@@ -23,6 +23,25 @@ tests, but they are not loaded by the ComfyUI runtime.
 > [dated RC2 rehearsal record](docs/release-rehearsal-2026-07-13.md) for exact
 > evidence and open final-tag gates. The stable `v0.4.0` tag remains on hold.
 
+## Run the identity demo from unreleased `main`
+
+For the current people-first demo, use a clean clone of unreleased `main` and
+install the optional identity dependencies into the exact Python environment
+that launches ComfyUI:
+
+```bash
+cd /path/to/ComfyUI/custom_nodes
+git clone --branch main --depth 1 \
+  https://github.com/trypluribus/comfyui-pluribus
+/path/to/ComfyUI/.venv/bin/python -m pip install \
+  -r /path/to/ComfyUI/custom_nodes/comfyui-pluribus/requirements-identity.txt
+```
+
+Restart ComfyUI, open **Pluribus**, and choose **Install local models** before
+loading the demo video and choosing **Find people**. This is a controlled demo
+path for unreleased development code, not a replacement for the supported
+`v0.4.0-rc.2` install or a claim that `main` is a release.
+
 ## What the plugin does
 
 - Scans every independent graph lane for supported reference images, video,

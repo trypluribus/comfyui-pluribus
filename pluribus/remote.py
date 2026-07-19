@@ -342,6 +342,31 @@ async def create_project_person(
     )
 
 
+async def update_project_person(
+    connection_path: str,
+    project_id: str,
+    person_id: str,
+    body: dict,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    person_id = _opaque_id(person_id, "personId")
+    payload = _pick(body, ("displayName", "role"))
+    representative = body.get("representative") if isinstance(body, dict) else None
+    if representative not in (None, ""):
+        payload["representative"] = _pick(
+            representative, ("role", "name", "email")
+        )
+    _assert_no_graph_material(payload)
+    return await _proxy_json(
+        connection_path,
+        "PATCH",
+        f"/api/plugin/projects/{project_id}/people/{person_id}",
+        payload,
+        fetch,
+    )
+
+
 async def put_project_source_links(
     connection_path: str,
     project_id: str,
@@ -360,6 +385,14 @@ async def put_project_source_links(
     supplied_manifest = str(body.get("manifestHash") or "")
     if supplied_manifest and supplied_manifest != payload["manifestHash"]:
         raise ValueError("manifestHash does not match the normalized rights manifest.")
+    base_manifest_version = body.get("baseManifestVersion")
+    if (
+        isinstance(base_manifest_version, bool)
+        or not isinstance(base_manifest_version, int)
+        or base_manifest_version < 0
+    ):
+        raise ValueError("baseManifestVersion must be a non-negative integer.")
+    payload["baseManifestVersion"] = base_manifest_version
     return await _proxy_json(
         connection_path,
         "PUT",
