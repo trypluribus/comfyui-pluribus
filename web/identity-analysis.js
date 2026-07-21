@@ -277,14 +277,20 @@ export async function commitIdentityDecision(jobId, decision) {
     && current.activeProjectId
     && current.workflowBinding?.workflowRef
   ) {
-    try {
-      const { syncCurrentRightsManifest } = await import("./sync-manifest.js");
-      await syncCurrentRightsManifest();
-      syncState = await refreshIdentityWorkspaceSyncState() || syncState;
-    } catch {
-      // The local decision and durable outbox are already committed. Network,
-      // auth, or manifest conflicts remain visible as pending and retry later.
-    }
+    // The decision endpoint has already committed the local transaction and
+    // durable outbox. Do not keep the review modal open while the second-phase
+    // workspace manifest sync runs; the explicit sync state remains visible
+    // in the People view and the outbox will retry safely.
+    void (async () => {
+      try {
+        const { syncCurrentRightsManifest } = await import("./sync-manifest.js");
+        await syncCurrentRightsManifest();
+        await refreshIdentityWorkspaceSyncState();
+      } catch {
+        // Network, auth, or manifest conflicts remain visible as pending and
+        // retry on reconnect, panel load, startup, or explicit retry.
+      }
+    })();
   }
   return { ...payload, links, revision, syncState };
 }
