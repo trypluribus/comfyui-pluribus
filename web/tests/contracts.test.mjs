@@ -2229,7 +2229,7 @@ test("people-first panel and review wizard expose an accessible progressive flow
   assert.match(view, /Expand for individual selection/);
   assert.match(view, /decision === "false_positive" \? "Dismissed" : "Included"/);
   assert.match(view, /occurrenceIds: \[\.\.\.form\.occurrenceIds\]/);
-  assert.match(view, /Add person from remaining/);
+  assert.match(view, /Identify remaining appearances/);
   assert.match(view, /Assigned to \$\{item\.lockedOwner\}/);
   assert.match(view, /reviewContextIsCurrent/);
   assert.doesNotMatch(view.slice(view.indexOf("function appearanceGroup"), view.indexOf("function contactStage")), /\.slice\(0, 8\)/);

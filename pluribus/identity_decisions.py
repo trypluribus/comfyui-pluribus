@@ -1394,9 +1394,11 @@ class IdentityDecisionService:
             selected_source_refs=selected_source_refs,
             target_person_id=target_person_id,
             display_name=target_display_name,
-            # The checked appearances replace this person's selection only in
-            # the edited candidate. Links in every other candidate remain intact.
-            preserve_target=False,
+            # Assign replaces this person's selection only in the edited
+            # candidate. Combine has already canonicalized every merged alias,
+            # so its appearances must be unioned with the checked selection
+            # rather than discarded from a same-candidate survivor link.
+            preserve_target=request["action"] == "combine",
         )
         links_path, links_document, link_response = self.identity._prepare_links_locked(
             request["jobId"],

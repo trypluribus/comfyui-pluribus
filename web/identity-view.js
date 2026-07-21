@@ -442,6 +442,30 @@ export function candidateUnresolvedCount(candidate, identity, state = getState()
   return occurrences.filter((occurrence) => !resolved.has(String(occurrence.occurrenceId))).length;
 }
 
+function unresolvedCandidateOccurrences(candidate, identity, state = getState()) {
+  const resolved = confirmedOccurrenceIds(candidate, state);
+  for (const occurrenceId of candidateDismissedOccurrenceIds(candidate, identity, state)) {
+    resolved.add(occurrenceId);
+  }
+  return candidateOccurrences(candidate, identity).filter((occurrence) =>
+    !resolved.has(String(occurrence.occurrenceId))
+  );
+}
+
+function proposedCandidateView(candidate, identity, state = getState()) {
+  const occurrences = unresolvedCandidateOccurrences(candidate, identity, state);
+  const occurrenceIds = occurrences.map((occurrence) => String(occurrence.occurrenceId));
+  const sourceRefs = occurrences.length
+    ? [...new Set(occurrences.map((occurrence) => occurrence.sourceRef).filter(Boolean).map(String))]
+    : [...(candidate.sourceRefs || [])];
+  return {
+    ...candidate,
+    occurrences,
+    occurrenceIds,
+    sourceRefs,
+  };
+}
+
 function candidateIssues(candidate, identity) {
   return (identity?.issues || []).filter((issue) => issue.candidateId === candidate.candidateId);
 }
@@ -958,9 +982,9 @@ export function renderIdentityPeople(container) {
     state.personDrafts,
     projectPeople()
   );
-  const proposedCandidates = (identity.candidates || []).filter((candidate) =>
-    !candidateIsResolved(candidate, identity, state)
-  );
+  const proposedCandidates = (identity.candidates || [])
+    .filter((candidate) => !candidateIsResolved(candidate, identity, state))
+    .map((candidate) => proposedCandidateView(candidate, identity, state));
   const presentation = identityPresentationGroups({
     ...identity,
     candidates: proposedCandidates,
@@ -972,7 +996,7 @@ export function renderIdentityPeople(container) {
     el(
       "div",
       { class: "plb-people-intro" },
-      el("div", {}, metaLabel("Project identities", true), el("h2", { text: "People and proposed groups" }), el("p", { text: "Confirmed appearances are grouped by person. Unresolved visual groups stay separate until you review them." })),
+      el("div", {}, metaLabel("Project identities", true), el("h2", { text: "People and proposed groups" }), el("p", { text: "Confirmed appearances are grouped by person. Proposed cards show only appearances that remain unassigned, including leftovers from partially reviewed visual groups." })),
       el("span", { class: "plb-coverage-pill", text: coverageLabel(identity.coverage) })
     )
   );
@@ -1189,6 +1213,9 @@ function peopleTierSection(title, description, candidates, indexOffset, identity
 }
 
 function candidateCard(candidate, index, identity, sources, state) {
+  const reviewCandidate = (identity.candidates || []).find((item) =>
+    item.candidateId === candidate.candidateId
+  ) || candidate;
   const links = identityLinksForCandidate(candidate, state).filter((link) => link.state === "confirmed");
   const linkedPeople = links.map((link) => {
     const personId = String(link.personId || link.person_id || "");
@@ -1206,10 +1233,6 @@ function candidateCard(candidate, index, identity, sources, state) {
       ? null
       : draftForCandidate(candidate, state);
   const link = linkedPeople.length === 1 ? linkedPeople[0].link : null;
-  const name = linkedPeople.length > 1
-    ? `${linkedPeople.length} reviewed people in this visual group`
-    : draft?.displayName || link?.displayName || link?.display_name || candidateName(candidate, index);
-  const role = candidateRoleLabel(linkedPeople, draft, candidate);
   const suggestionProvenance = identitySuggestionProvenance(candidate);
   const showingProjectSuggestion = !linkedPeople.length && !draft && Boolean(candidate.suggestedName || candidate.suggestedRole);
   const occurrences = candidateOccurrences(candidate, identity);
@@ -1224,6 +1247,10 @@ function candidateCard(candidate, index, identity, sources, state) {
     && (!occurrences.length || dismissedCount === occurrences.length);
   const unresolved = candidateUnresolvedCount(candidate, identity, state);
   const partial = !resolved && (linkedPeople.length > 0 || Boolean(draft) || dismissedCount > 0);
+  const name = linkedPeople.length
+    ? `${occurrences.length} ${occurrences.length === 1 ? "appearance still needs" : "appearances still need"} review`
+    : draft?.displayName || link?.displayName || link?.display_name || candidateName(candidate, index);
+  const role = linkedPeople.length ? "" : candidateRoleLabel(linkedPeople, draft, candidate);
   const review = !resolved;
   const issues = candidateIssues(candidate, identity);
   const ambiguousCount = issues.filter((issue) => issue.code === "ambiguous_identity").length;
@@ -1231,7 +1258,7 @@ function candidateCard(candidate, index, identity, sources, state) {
   return el(
     "article",
     { class: `plb-candidate-card${resolved ? " confirmed" : review ? " review" : ""}`, "aria-labelledby": headingId },
-    filmstrip(candidate, identity),
+    occurrenceFilmstrip(occurrences, name, 5),
     el(
       "div",
       { class: "plb-candidate-body" },
@@ -1255,8 +1282,13 @@ function candidateCard(candidate, index, identity, sources, state) {
           : null
       ),
       el("p", { class: "plb-use-sentence", text: plainLanguageUseSummary(candidate, sources) }),
-      linkedPeople.length > 1
-        ? el("p", { class: "plb-linked-people-line", text: linkedPeople.map((person) => person.name).join(" · ") })
+      linkedPeople.length
+        ? el("p", {
+            class: "plb-linked-people-line",
+            text: linkedPeople.length === 1
+              ? `Only unassigned appearances are shown. This visual group also contains confirmed appearances for ${linkedPeople[0].name}.`
+              : `Only unassigned appearances are shown. Other appearances in this visual group are assigned to ${linkedPeople.map((person) => person.name).join(" · ")}.`,
+          })
         : null,
       candidate.evidence.length
         ? el("p", { class: "plb-evidence-line", text: candidate.evidence.slice(0, 2).join(" · ") })
@@ -1274,13 +1306,13 @@ function candidateCard(candidate, index, identity, sources, state) {
         { class: "plb-actions" },
         linkedPeople.length
           ? linkedPeople.map((person) =>
-              button(`Edit ${person.name}`, "secondary", () =>
-                openIdentityReviewDialog(candidate, person.personId)
+              button(`Review ${person.name}'s assignment`, "secondary", () =>
+                openIdentityReviewDialog(reviewCandidate, person.personId)
               )
             )
-          : button(resolved || draft ? "Edit review" : "Review identity", "primary", () => openIdentityReviewDialog(candidate, draft?.draftId)),
+          : button(resolved || draft ? "Edit review" : "Review identity", "primary", () => openIdentityReviewDialog(reviewCandidate, draft?.draftId)),
         linkedPeople.length && unresolved
-          ? button("Add person from remaining", "primary", () =>
+          ? button("Identify remaining appearances", "primary", () =>
               openIdentityReviewDialog(candidate, "", { newPerson: true })
             )
           : null,
@@ -1308,6 +1340,12 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
   const openedScanEpoch = state.scanEpoch;
   const openedScan = state.scan;
   const openedJobId = String(state.identityJob?.jobId || state.identityJob?.job_id || "");
+  const scanMatchesCurrentWorkflow = typeof options.scanMatchesCurrentWorkflow === "function"
+    ? options.scanMatchesCurrentWorkflow
+    : async (scan) => {
+        const { scanMatchesCurrentWorkflow: matchesCurrentWorkflow } = await import("./canvas.js");
+        return matchesCurrentWorkflow(scan);
+      };
   if (!identity || !workflowRef) {
     toast("Run identity analysis again before reviewing this person.");
     return;
@@ -1497,7 +1535,6 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       return false;
     }
     try {
-      const { scanMatchesCurrentWorkflow } = await import("./canvas.js");
       if (!(await scanMatchesCurrentWorkflow(openedScan)) || !reviewContextIsCurrent()) {
         close();
         toast("The graph changed after identity analysis. Find people again before saving this review.");
@@ -1873,8 +1910,11 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         const control = el("input", {
           type: "checkbox",
           "aria-label": `${decision === "false_positive" ? "Dismiss" : "Include"} ${occurrenceAlt(occurrence, name)}`,
-          disabled: Boolean(lockedOwner),
         });
+        // `disabled` is an HTML boolean attribute: even disabled="false"
+        // disables the control. Assign the DOM property so appearances that
+        // are not owned by another person remain interactive.
+        control.disabled = Boolean(lockedOwner);
         const status = el("span", { class: "plb-appearance-item-status" });
         const item = el(
           "label",
@@ -2301,7 +2341,11 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
             toast(`${form.name.trim()} and the selected appearances were saved locally.`);
           }
         } catch (error) {
-          toast(error.message || "Could not save this person.");
+          toast(
+            identityRevisionConflict(error)
+              ? "Visual review changed in another window. Close and reopen this person before saving again."
+              : error.message || "Could not save this person. Check the error and try again."
+          );
           save.disabled = false;
         }
       }

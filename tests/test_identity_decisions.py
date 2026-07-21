@@ -363,6 +363,51 @@ def test_explicit_combine_rewrites_all_links_and_persists_alias_tombstone(tmp_pa
     assert restarted.reconciliation_preview(state["jobId"])["counts"]["tombstones"] == 1
 
 
+def test_combine_unions_same_candidate_appearances_before_tombstoning_alias(tmp_path):
+    state = _state(tmp_path, project=False)
+    _draft(state, PERSON_A, "Nisreen", [state["sources"][0]])
+    _draft(state, PERSON_B, "Nisreen duplicate", [state["sources"][1]])
+    state["identity"].put_links(
+        state["jobId"],
+        {
+            "baseRevision": 0,
+            "links": [
+                _confirmed("candidate-b", PERSON_A, ["b-shared"]),
+                _confirmed("candidate-b", PERSON_B, ["b-other"]),
+            ],
+        },
+    )
+
+    result = _decision(
+        state,
+        base_revision=1,
+        occurrenceIds=["b-other"],
+        target={"draftId": PERSON_A},
+        action="combine",
+        mergeDraftIds=[PERSON_B],
+    )
+
+    assert result["links"] == [
+        {
+            "candidateId": "candidate-b",
+            "personId": PERSON_A,
+            "state": "confirmed",
+            "displayName": "Nisreen",
+            "occurrenceIds": ["b-other", "b-shared"],
+        }
+    ]
+    assert [value["draftId"] for value in result["personDrafts"]] == [PERSON_A]
+    assert result["personDrafts"][0]["sourceRefs"] == sorted(state["sources"][:2])
+    assert state["identity"].get_links(state["jobId"])["links"] == result["links"]
+    assert state["decisions"].pending_sync_entries()[-1]["sourcePeople"] == [
+        {"sourceRef": source_ref, "personIds": [PERSON_A]}
+        for source_ref in sorted(state["sources"][:2])
+    ]
+    assert state["bindings"].resolve_person_alias(
+        state["workflow"]["workflowRef"], PERSON_B
+    ) == PERSON_A
+
+
 def test_combine_rejects_drafts_mapped_to_different_project_people(tmp_path):
     state = _state(tmp_path)
     _draft(
