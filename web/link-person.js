@@ -1,7 +1,11 @@
-import { createProjectPerson } from "./api.js";
+import { createProjectPerson, saveLocalPersonDraft } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
 import { personLocalKey } from "./manifest.js";
-import { localDraftsForPerson, markPersonDraftPromoted } from "./person-drafts.js";
+import {
+  ensurePersonDraftId,
+  localDraftsForPerson,
+  markPersonDraftPromoted,
+} from "./person-drafts.js";
 import { getState, projectPeople, projectSourceLinks } from "./store.js";
 import { syncCurrentRightsManifest } from "./sync-manifest.js";
 
@@ -79,6 +83,7 @@ export function openLinkPersonDialog(person) {
   );
   const drafts = localDraftsForPerson(person, state);
   let selectedDraft = drafts[0] || null;
+  const pendingDraftId = ensurePersonDraftId();
   const fillFromDraft = (draft) => {
     name.value = draft?.displayName || "";
     role.value = draft?.role || "";
@@ -130,30 +135,65 @@ export function openLinkPersonDialog(person) {
         .map((item) => item.id);
       const ids = [...selectedExistingIds];
       let promotedCanonicalId = null;
+      let promotedDraft = selectedDraft;
       if (createNew.checked && !name.value.trim()) {
         toast("Add a name for the new Pluribus person.");
         save.disabled = false;
         return;
       }
       if (createNew.checked) {
+        const sourceRef = person.sourceRef || state.sourceRefs[personLocalKey(person)];
+        if (!sourceRef) {
+          throw new Error("The local source reference is not ready. Rescan and try again.");
+        }
+        const representative = repName.value.trim() || repEmail.value.trim()
+          ? {
+              role: repRole.value,
+              name: repName.value.trim() || undefined,
+              email: repEmail.value.trim() || undefined,
+            }
+          : undefined;
+        // Persist the local identity before the network call. If the response
+        // is lost, reopening this source reuses the same clientPersonId and the
+        // hosted alias ledger returns the original project person.
+        const savedDraft = await saveLocalPersonDraft(
+          state.workflowBinding.workflowRef,
+          {
+            ...(selectedDraft || {}),
+            draftId: selectedDraft?.draftId || pendingDraftId,
+            displayName: name.value.trim(),
+            role: role.value.trim() || undefined,
+            talentEmail: talentEmail.value.trim() || undefined,
+            representative,
+            sourceRefs: [...new Set([
+              ...(selectedDraft?.sourceRefs || []),
+              sourceRef,
+            ])],
+          }
+        );
+        promotedDraft = savedDraft.draft;
         const createdPayload = await createProjectPerson(state.activeProjectId, {
           mode: "new",
+          workflowRef: state.workflowBinding.workflowRef,
+          clientPersonId: promotedDraft.draftId,
           displayName: name.value.trim(),
           role: role.value.trim() || undefined,
           talentEmail: talentEmail.value.trim() || undefined,
-          representative: repName.value.trim() || repEmail.value.trim()
-            ? {
-                role: repRole.value,
-                name: repName.value.trim() || undefined,
-                email: repEmail.value.trim() || undefined,
-              }
-            : undefined,
+          representative,
         });
         const created = createdPayload.person || createdPayload.talent || createdPayload;
         promotedCanonicalId = created.id || created.talentRecordId;
         ids.push(promotedCanonicalId);
       } else if (selectedExistingIds.length === 1) {
         promotedCanonicalId = selectedExistingIds[0];
+        if (selectedDraft?.draftId) {
+          await createProjectPerson(state.activeProjectId, {
+            mode: "existing",
+            workflowRef: state.workflowBinding.workflowRef,
+            clientPersonId: selectedDraft.draftId,
+            talentRecordId: promotedCanonicalId,
+          });
+        }
       }
       const uniqueIds = [...new Set(ids.filter(Boolean))];
       if (!uniqueIds.length) {
@@ -164,9 +204,9 @@ export function openLinkPersonDialog(person) {
       await saveSourceUpdate(person, "linked", uniqueIds);
       close();
       toast(`Linked ${uniqueIds.length} ${uniqueIds.length === 1 ? "person" : "people"}.`);
-      if (selectedDraft && promotedCanonicalId) {
+      if (promotedDraft && promotedCanonicalId) {
         try {
-          await markPersonDraftPromoted(selectedDraft, promotedCanonicalId);
+          await markPersonDraftPromoted(promotedDraft, promotedCanonicalId);
         } catch (error) {
           console.warn("[Pluribus] linked person but could not mark local details as promoted", error);
           toast("People were linked, but the local details could not be marked as linked.");

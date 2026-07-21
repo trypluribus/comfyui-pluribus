@@ -1260,6 +1260,15 @@
 }
 .plb-candidate-card.review { --plb-state: var(--plb-warn); }
 .plb-candidate-card.confirmed { --plb-state: var(--plb-ok); }
+.plb-reviewed-people { padding-bottom: 12px; border-bottom: 1px solid var(--plb-line); }
+.plb-person-sync-actions { display: flex; align-items: center; gap: 7px; }
+.plb-person-sync-actions .plb-btn { min-height: 28px; padding: 5px 9px; }
+.plb-person-card { background: color-mix(in oklch, var(--plb-surface) 94%, var(--plb-ok)); }
+.plb-person-groups { border-top: 1px solid var(--plb-line); }
+.plb-person-groups > summary { padding: 8px 0 0; color: var(--plb-mute); cursor: pointer; font-size: 9px; }
+.plb-person-group-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.plb-person-group-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 8px; background: var(--plb-elevated); border: 1px solid var(--plb-line); }
+.plb-person-group-row > span { color: var(--plb-mute); font-size: 8.5px; }
 .plb-filmstrip {
   display: grid;
   grid-template-columns: 1.3fr repeat(4, minmax(0, 1fr));

@@ -30,7 +30,11 @@ import {
   workflowName,
 } from "./canvas.js";
 import { workflowFingerprint } from "./fingerprint.js";
-import { analyzeWorkflowIdentity, refreshIdentityCapabilities } from "./identity-analysis.js";
+import {
+  analyzeWorkflowIdentity,
+  refreshIdentityCapabilities,
+  retryIdentityWorkspaceSync,
+} from "./identity-analysis.js";
 import { identityManualReviewItems, plainLanguageUseSummary } from "./identity-contract.js";
 import {
   candidateHasActiveOccurrencesForSource,
@@ -124,6 +128,15 @@ function maybeLoadConnectedContext(state) {
   if (state.workspaceReady || state.projectLoading || contextRequested) return;
   contextRequested = true;
   void loadProductContext()
+    .then(async () => {
+      // Reconnect can promote durable person operations before the active
+      // project/workflow context is restored. Retry once hydration finishes so
+      // the complete source manifest is projected and can acknowledge those
+      // already-idempotent person operations.
+      if (getState().connection?.state === "connected") {
+        await retryIdentityWorkspaceSync();
+      }
+    })
     .catch((error) => toast(error.message || "Could not load your Pluribus workspace."))
     .finally(() => {
       contextRequested = false;
@@ -208,11 +221,10 @@ export async function scan() {
       if (identityPromise) {
         void identityPromise.then(async () => {
           if (!isCurrent() || getState().connection?.state !== "connected") return;
-          const latest = getState();
-          const hasLocalReview = Object.values(latest.sourceReviews || {}).some(
-            (review) => ["not_person", "review_required"].includes(review?.state)
-          );
-          if (hasLocalReview) await syncCurrentRightsManifest();
+          // Identity ownership and its opaque review hash arrive after the
+          // initial graph manifest. Always replace the full manifest again so
+          // proof/readiness cannot remain current on a pre-review snapshot.
+          await syncCurrentRightsManifest();
         }).catch((error) => console.warn("[Pluribus] local source review sync failed", error));
       }
     }

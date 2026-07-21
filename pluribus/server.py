@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from functools import wraps
 from urllib.parse import urlsplit
 
 from aiohttp import web
 
-from .bindings import BindingStore
+from .bindings import BindingConflictError, BindingStore
 from .api import (
     action_payload,
     packet_payload,
@@ -27,7 +28,9 @@ from .identity_service import (
     IdentityAnalysisService,
     IdentityCapacityError,
     IdentityConflictError,
+    IdentityPersistenceError,
 )
+from .identity_decisions import IdentityDecisionService
 from . import remote
 
 
@@ -38,6 +41,7 @@ def register_routes(
     connection_path: str | None = None,
     bindings_path: str | None = None,
     identity_service: IdentityAnalysisService | None = None,
+    identity_decision_service: IdentityDecisionService | None = None,
 ) -> None:
     routes = prompt_server.routes
     # A clean install has no fabricated talent or clearance state. Passing a
@@ -55,6 +59,31 @@ def register_routes(
     identity = identity_service or IdentityAnalysisService(
         os.path.dirname(actions_path) or "."
     )
+    decisions = identity_decision_service
+    if decisions is None and isinstance(identity, IdentityAnalysisService):
+        decisions = IdentityDecisionService(
+            identity,
+            bindings,
+            connection_path=connection_path,
+        )
+
+    def _schedule_identity_sync() -> None:
+        if decisions is None:
+            return
+        async def drain_safely():
+            try:
+                await decisions.drain_pending_async()
+            except (ValueError, OSError):
+                return
+        try:
+            asyncio.get_running_loop().create_task(drain_safely())
+        except RuntimeError:
+            # Registration in headless tests and some ComfyUI boot paths occurs
+            # before an event loop is running. Panel load/reconnect/retry routes
+            # provide the same deterministic drain later.
+            pass
+
+    _schedule_identity_sync()
 
     async def _body(request) -> dict:
         content_type = str(getattr(request, "content_type", "") or "").lower()
@@ -162,10 +191,12 @@ def register_routes(
 
     def _identity_not_found_or_error(exc: ValueError):
         status = (
-            429
+            503
+            if isinstance(exc, IdentityPersistenceError)
+            else 429
             if isinstance(exc, IdentityCapacityError)
             else 409
-            if isinstance(exc, IdentityConflictError)
+            if isinstance(exc, (IdentityConflictError, BindingConflictError))
             else 404
             if "not found" in str(exc).lower()
             else 400
@@ -272,6 +303,63 @@ def register_routes(
                     _path(request, "job_id"), await _body(request)
                 )
             )
+        except ValueError as exc:
+            return _identity_not_found_or_error(exc)
+
+    @_mutation_route(routes.put, "/pluribus/identity/jobs/{job_id}/decision")
+    async def identity_decision_put(request):
+        try:
+            if decisions is None:
+                raise ValueError("Identity decisions are unavailable for this local service.")
+            result = decisions.put_decision(
+                _path(request, "job_id"), await _body(request)
+            )
+            try:
+                sync_details = await decisions.drain_sync_entry(
+                    result["syncDetails"]["entryId"]
+                )
+                result["syncState"] = sync_details["state"]
+                result["syncDetails"] = sync_details
+                result["personDrafts"] = bindings.list_person_drafts(
+                    sync_details["workflowRef"]
+                )
+            except (OSError, ValueError):
+                # The local decision is already committed and retryable. Never
+                # turn a remote reconciliation failure into a failed local save.
+                pass
+            return _identity_response(result)
+        except ValueError as exc:
+            return _identity_not_found_or_error(exc)
+
+    @_mutation_route(
+        routes.get, "/pluribus/identity/jobs/{job_id}/reconciliation"
+    )
+    async def identity_reconciliation_get(request):
+        try:
+            if decisions is None:
+                raise ValueError("Identity reconciliation is unavailable.")
+            return _identity_response(
+                decisions.reconciliation_preview(_path(request, "job_id"))
+            )
+        except ValueError as exc:
+            return _identity_not_found_or_error(exc)
+
+    @_mutation_route(routes.get, "/pluribus/identity/sync")
+    async def identity_sync_status(request):
+        try:
+            if decisions is None:
+                return _identity_response({"entries": []})
+            _schedule_identity_sync()
+            return _identity_response({"entries": decisions.sync_status()})
+        except ValueError as exc:
+            return _identity_not_found_or_error(exc)
+
+    @_mutation_route(routes.post, "/pluribus/identity/sync/retry")
+    async def identity_sync_retry(request):
+        try:
+            if decisions is None:
+                return _identity_response({"entries": []})
+            return _identity_response({"entries": await decisions.drain_pending_async()})
         except ValueError as exc:
             return _identity_not_found_or_error(exc)
 
@@ -401,8 +489,9 @@ def register_routes(
         except ValueError as exc:
             return _error(exc)
 
-    @routes.get("/pluribus/connect")
+    @_mutation_route(routes.get, "/pluribus/connect")
     async def connect_status(request):
+        _schedule_identity_sync()
         return web.json_response(remote.get_status(connection_path))
 
     @_mutation_route(routes.post, "/pluribus/connect/start")
@@ -411,7 +500,10 @@ def register_routes(
 
     @_mutation_route(routes.post, "/pluribus/connect/poll")
     async def connect_poll(request):
-        return web.json_response(await remote.poll_pairing(connection_path))
+        result = await remote.poll_pairing(connection_path)
+        if result.get("state") == "connected" and decisions is not None:
+            await decisions.drain_pending_async()
+        return web.json_response(result)
 
     @_mutation_route(routes.post, "/pluribus/connect/disconnect")
     async def connect_disconnect(request):
@@ -482,7 +574,11 @@ def register_routes(
                 }
             )
         except ValueError as exc:
-            return _error(exc)
+            return (
+                _identity_not_found_or_error(exc)
+                if isinstance(exc, BindingConflictError)
+                else _error(exc)
+            )
 
     @_mutation_route(routes.delete, "/pluribus/workflows/{workflow_ref}/person-drafts/{draft_id}")
     async def person_drafts_delete(request):
@@ -587,15 +683,47 @@ def register_routes(
     @_mutation_route(routes.post, "/pluribus/projects/{project_id}/people")
     async def project_people_post(request):
         try:
-            return _remote_response(
-                await remote.create_project_person(
-                    connection_path,
-                    _path(request, "project_id"),
-                    await _body(request),
-                )
+            project_id = _path(request, "project_id")
+            body = await _body(request)
+            workflow_ref = str(body.get("workflowRef") or "")
+            hosted_body = remote.normalize_project_person_payload(body)
+            result = await remote.create_project_person(
+                connection_path,
+                project_id,
+                hosted_body,
             )
+            status, payload = result
+            if workflow_ref and 200 <= status < 300:
+                created = None
+                if isinstance(payload, dict):
+                    created = (
+                        payload.get("person") or payload.get("talent") or payload
+                    )
+                if not isinstance(created, dict):
+                    raise ValueError(
+                        "Workspace person linking returned an invalid local receipt."
+                    )
+                canonical_person_id = str(
+                    created.get("id")
+                    or created.get("talentRecordId")
+                    or created.get("talent_record_id")
+                    or ""
+                )
+                bindings.record_workspace_alias(
+                    workflow_ref,
+                    project_id,
+                    hosted_body.get("clientPersonId"),
+                    canonical_person_id,
+                    hosted_body.get("mode"),
+                    remote.project_person_request_hash(hosted_body),
+                )
+            return _remote_response(result)
         except ValueError as exc:
-            return _error(exc)
+            return (
+                _identity_not_found_or_error(exc)
+                if isinstance(exc, BindingConflictError)
+                else _error(exc)
+            )
 
     @_mutation_route(
         routes.patch, "/pluribus/projects/{project_id}/people/{person_id}"
@@ -629,6 +757,10 @@ def register_routes(
             )
             if 200 <= result[0] < 300:
                 bindings.record_source_links(workflow_ref, project_id, payload)
+                if decisions is not None:
+                    decisions.mark_workflow_revision_synced(
+                        workflow_ref, body.get("identityRevision")
+                    )
             return _remote_response(result)
         except ValueError as exc:
             return _error(exc)

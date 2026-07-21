@@ -138,7 +138,8 @@ export function linkedCanonicalPersonIds(sourceLinks = []) {
 export function visiblePersonDrafts(drafts = [], canonicalIds = new Set()) {
   const linkedIds = canonicalIds instanceof Set ? canonicalIds : new Set(canonicalIds || []);
   return (drafts || []).filter(
-    (draft) => !draft.canonicalPersonId || !linkedIds.has(draft.canonicalPersonId)
+    (draft) => !draft.mergedIntoDraftId
+      && (!draft.canonicalPersonId || !linkedIds.has(draft.canonicalPersonId))
   );
 }
 

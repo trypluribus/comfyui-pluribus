@@ -10,6 +10,10 @@ import {
   mergeManifestOverrideMaps,
 } from "./manifest.js";
 import {
+  identityReviewHash,
+  projectIdentitySources,
+} from "./identity-projection.js";
+import {
   getState,
   setState,
 } from "./store.js";
@@ -63,7 +67,15 @@ function captureSyncSnapshot(overrides) {
     sourceRefs: { ...(state.sourceRefs || {}) },
     sourceReviews: { ...(state.sourceReviews || {}) },
     sourceHashes: [...(state.identityPayload?.sourceHashes || [])],
+    identityPayload: state.identityPayload,
+    identityLinks: [...(state.identityLinks || [])],
+    identityRevision: Number.isInteger(state.identityLinksRevision)
+      ? state.identityLinksRevision
+      : undefined,
     personDrafts: [...(state.personDrafts || [])],
+    canonicalPeople: [
+      ...(state.projectContext?.people || state.projectContext?.project?.people || []),
+    ],
     overrides: overrides instanceof Map
       ? new Map(overrides)
       : new Map(Object.entries(overrides || {})),
@@ -87,6 +99,16 @@ async function performManifestSync(snapshot) {
     const existingSources = [
       ...(latestContext.sourceLinks || latestContext.sources || []),
     ];
+    const identityProjection = projectIdentitySources(
+      snapshot.identityPayload || {},
+      snapshot.identityLinks,
+      snapshot.personDrafts,
+      snapshot.canonicalPeople
+    );
+    const completeOverrides = mergeManifestOverrideMaps(
+      snapshot.overrides,
+      identityProjection
+    );
     const sources = manifestSourcesForScan(
       snapshot.persons,
       snapshot.sourceRefs,
@@ -94,7 +116,7 @@ async function performManifestSync(snapshot) {
       manifestOverridesForLocalReviews(
         snapshot.sourceReviews,
         existingSources,
-        snapshot.overrides,
+        completeOverrides,
         snapshot.sourceHashes,
         snapshot.personDrafts
       )
@@ -102,12 +124,21 @@ async function performManifestSync(snapshot) {
     const baseManifestVersion = Number.isInteger(latestContext.workflow?.rightsManifestVersion)
       ? latestContext.workflow.rightsManifestVersion
       : 0;
+    const reviewHash = snapshot.identityPayload
+      ? await identityReviewHash(
+          snapshot.identityPayload,
+          snapshot.identityLinks,
+          snapshot.personDrafts
+        )
+      : "";
     try {
       if (!syncContextIsCurrent(snapshot)) throw syncContextChangedError();
       const saved = await saveProjectSourceLinks(snapshot.projectId, {
         workflowRef: snapshot.workflowRef,
         workflowKind: snapshot.workflowKind,
         graphHash: snapshot.graphHash || undefined,
+        identityReviewHash: reviewHash || undefined,
+        identityRevision: snapshot.identityRevision,
         baseManifestVersion,
         sources,
       });

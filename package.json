@@ -6,6 +6,9 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test web/tests/contracts.test.mjs"
+    "test": "node --test web/tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "jsdom": "^29.0.2"
   }
 }

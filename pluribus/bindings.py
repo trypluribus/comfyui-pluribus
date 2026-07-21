@@ -39,6 +39,10 @@ IDENTIFIER_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
+class BindingConflictError(ValueError):
+    """Raised when a stale local write would revive or overwrite an alias."""
+
+
 def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -107,9 +111,60 @@ def _optional_email(value: object, field: str) -> str | None:
     return normalized
 
 
+def _normalize_workspace_alias(
+    value: object,
+    *,
+    draft_id: object,
+    canonical_person_id: object,
+) -> dict[str, str]:
+    """Validate the private receipt proving a local alias was hosted.
+
+    The marker is intentionally small and non-secret.  It is accepted only on
+    trusted internal normalization paths; the public person-draft PUT cannot
+    forge a successful workspace attachment.
+    """
+
+    if not isinstance(value, dict):
+        raise ValueError("workspaceAlias must be an object.")
+    safe_draft_id = _require_uuid(draft_id, "draftId")
+    safe_canonical_id = _require_identifier(
+        canonical_person_id, "canonicalPersonId"
+    )
+    if value.get("state") != "synced":
+        raise ValueError("workspaceAlias.state must be synced.")
+    client_person_id = _require_uuid(
+        value.get("clientPersonId"), "workspaceAlias.clientPersonId"
+    )
+    if client_person_id != safe_draft_id:
+        raise ValueError("workspaceAlias.clientPersonId must match draftId.")
+    marker_canonical_id = _require_identifier(
+        value.get("canonicalPersonId"), "workspaceAlias.canonicalPersonId"
+    )
+    if marker_canonical_id != safe_canonical_id:
+        raise ValueError(
+            "workspaceAlias.canonicalPersonId must match canonicalPersonId."
+        )
+    request_mode = str(value.get("requestMode") or "")
+    if request_mode not in {"new", "existing"}:
+        raise ValueError("workspaceAlias.requestMode is not supported.")
+    return {
+        "state": "synced",
+        "clientPersonId": client_person_id,
+        "canonicalPersonId": marker_canonical_id,
+        "requestMode": request_mode,
+        "requestHash": _require_sha256(
+            value.get("requestHash"), "workspaceAlias.requestHash"
+        ),
+    }
+
+
 def _normalize_person_draft(
     body: object,
     known_source_refs: set[str],
+    *,
+    allow_empty_source_refs: bool = False,
+    allow_workspace_alias: bool = False,
+    allow_manual_source_refs: bool = False,
 ) -> dict[str, Any]:
     """Allow-list one local person draft without accepting graph metadata."""
     if not isinstance(body, dict):
@@ -153,10 +208,12 @@ def _normalize_person_draft(
         result["representative"] = safe_representative
 
     source_refs = body.get("sourceRefs")
-    if not isinstance(source_refs, list) or not source_refs:
+    if not isinstance(source_refs, list) or (
+        not source_refs and not allow_empty_source_refs
+    ):
         raise ValueError("sourceRefs must be a non-empty list.")
-    if len(source_refs) > 100:
-        raise ValueError("sourceRefs may contain at most 100 entries.")
+    if len(source_refs) > 500:
+        raise ValueError("sourceRefs may contain at most 500 entries.")
     safe_source_refs = sorted(
         {_require_sha256(source_ref, "sourceRef") for source_ref in source_refs}
     )
@@ -164,6 +221,60 @@ def _normalize_person_draft(
         if source_ref not in known_source_refs:
             raise ValueError("sourceRef was not minted for this workflow.")
     result["sourceRefs"] = safe_source_refs
+    if allow_manual_source_refs:
+        raw_manual_source_refs = body.get("manualSourceRefs", source_refs)
+        if not isinstance(raw_manual_source_refs, list):
+            raise ValueError("manualSourceRefs must be a list.")
+        safe_manual_source_refs = sorted(
+            {
+                _require_sha256(source_ref, "manualSourceRef")
+                for source_ref in raw_manual_source_refs
+            }
+        )
+        for source_ref in safe_manual_source_refs:
+            if source_ref not in known_source_refs:
+                raise ValueError(
+                    "manualSourceRef was not minted for this workflow."
+                )
+        result["manualSourceRefs"] = safe_manual_source_refs
+    if allow_workspace_alias and body.get("workspaceAlias") not in (None, ""):
+        result["workspaceAlias"] = _normalize_workspace_alias(
+            body.get("workspaceAlias"),
+            draft_id=result.get("draftId"),
+            canonical_person_id=result.get("canonicalPersonId"),
+        )
+    return result
+
+
+def _normalize_person_tombstone(value: object) -> dict[str, Any]:
+    """Validate one private alias record without reviving the merged draft."""
+
+    if not isinstance(value, dict):
+        raise ValueError("Person alias tombstone must be an object.")
+    draft_id = _require_uuid(value.get("draftId"), "draftId")
+    merged_into = _require_uuid(
+        value.get("mergedIntoDraftId"), "mergedIntoDraftId"
+    )
+    if draft_id == merged_into:
+        raise ValueError("A person alias cannot resolve to itself.")
+    result: dict[str, Any] = {
+        "draftId": draft_id,
+        "mergedIntoDraftId": merged_into,
+    }
+    resolved_person_id = value.get("resolvedPersonId")
+    if resolved_person_id not in (None, ""):
+        result["resolvedPersonId"] = _require_identifier(
+            resolved_person_id, "resolvedPersonId"
+        )
+    merged_at = value.get("mergedAt")
+    if isinstance(merged_at, int) and not isinstance(merged_at, bool) and merged_at >= 0:
+        result["mergedAt"] = merged_at
+    if value.get("workspaceAlias") not in (None, ""):
+        result["workspaceAlias"] = _normalize_workspace_alias(
+            value.get("workspaceAlias"),
+            draft_id=draft_id,
+            canonical_person_id=result.get("resolvedPersonId"),
+        )
     return result
 
 
@@ -173,6 +284,8 @@ def normalize_source_links(
     workflow_kind: object,
     graph_hash: object | None,
     sources: object,
+    identity_review_hash: object | None = None,
+    identity_revision: object | None = None,
 ) -> dict[str, Any]:
     """Build the exact safe, rights-relevant source-link payload.
 
@@ -278,6 +391,16 @@ def normalize_source_links(
         "workflowKind": safe_workflow_kind,
         "sources": safe_sources,
     }
+    safe_identity_review_hash = None
+    if identity_review_hash not in (None, ""):
+        safe_identity_review_hash = _require_sha256(
+            identity_review_hash, "identityReviewHash"
+        )
+        outbound_document["identityReviewHash"] = safe_identity_review_hash
+    if identity_revision not in (None, ""):
+        outbound_document["identityRevision"] = _require_nonnegative_int(
+            identity_revision, "identityRevision"
+        )
     # Human-readable labels and the whole-graph audit hash are deliberately
     # excluded. Renaming a card or changing an unrelated graph node must not
     # stale a person's confirmation.
@@ -289,6 +412,8 @@ def normalize_source_links(
             for source in safe_sources
         ],
     }
+    if safe_identity_review_hash:
+        rights_document["identityReviewHash"] = safe_identity_review_hash
     manifest_hash = hashlib.sha256(
         json.dumps(
             rights_document,
@@ -448,6 +573,30 @@ class BindingStore:
         drafts = binding.get("person_drafts")
         return drafts if isinstance(drafts, dict) else {}
 
+    @staticmethod
+    def _person_draft_tombstones(binding: dict[str, Any]) -> dict[str, Any]:
+        tombstones = binding.get("person_draft_tombstones")
+        return tombstones if isinstance(tombstones, dict) else {}
+
+    @classmethod
+    def _resolve_person_alias_in_binding(
+        cls, binding: dict[str, Any], person_id: object
+    ) -> str:
+        """Resolve a local draft alias while rejecting cycles and corrupt chains."""
+
+        current = str(person_id or "")
+        if not current:
+            return ""
+        tombstones = cls._person_draft_tombstones(binding)
+        seen: set[str] = set()
+        while current in tombstones:
+            if current in seen:
+                raise ValueError("Person alias tombstones contain a cycle.")
+            seen.add(current)
+            tombstone = _normalize_person_tombstone(tombstones[current])
+            current = tombstone["mergedIntoDraftId"]
+        return current
+
     def list_person_drafts(
         self,
         workflow_ref: object,
@@ -465,11 +614,40 @@ class BindingStore:
 
             drafts = []
             for stored in self._person_drafts(binding).values():
-                normalized = _normalize_person_draft(stored, known_source_refs)
+                normalized = _normalize_person_draft(
+                    stored,
+                    known_source_refs,
+                    allow_empty_source_refs=True,
+                    allow_workspace_alias=True,
+                    allow_manual_source_refs=True,
+                )
                 if safe_source_ref and safe_source_ref not in normalized["sourceRefs"]:
                     continue
+                normalized.pop("manualSourceRefs", None)
                 drafts.append(normalized)
             return deepcopy(drafts)
+
+    def list_person_draft_tombstones(
+        self, workflow_ref: object
+    ) -> list[dict[str, Any]]:
+        """List durable local aliases created by explicit identity consolidation."""
+
+        with self._lock:
+            binding = self._find(self._read(), str(workflow_ref or ""))
+            tombstones = [
+                _normalize_person_tombstone(value)
+                for value in self._person_draft_tombstones(binding).values()
+            ]
+            return deepcopy(sorted(tombstones, key=lambda value: value["draftId"]))
+
+    def resolve_person_alias(
+        self, workflow_ref: object, person_id: object
+    ) -> str:
+        """Return the surviving draft id for a stale local alias."""
+
+        with self._lock:
+            binding = self._find(self._read(), str(workflow_ref or ""))
+            return self._resolve_person_alias_in_binding(binding, person_id)
 
     def put_person_draft(
         self,
@@ -482,16 +660,88 @@ class BindingStore:
             binding = self._find(data, str(workflow_ref or ""))
             known_source_refs = set(binding.get("source_refs", {}).values())
             normalized = _normalize_person_draft(body, known_source_refs)
+            normalized["manualSourceRefs"] = list(normalized["sourceRefs"])
             draft_id = normalized.get("draftId") or str(uuid.uuid4())
             normalized["draftId"] = draft_id
+
+            if draft_id in self._person_draft_tombstones(binding):
+                survivor = self._resolve_person_alias_in_binding(binding, draft_id)
+                raise BindingConflictError(
+                    "This person draft was merged into another local identity. "
+                    f"Reload People and edit {survivor} instead."
+                )
 
             drafts = binding.get("person_drafts")
             if not isinstance(drafts, dict):
                 drafts = {}
                 binding["person_drafts"] = drafts
+            existing = drafts.get(draft_id)
+            if isinstance(existing, dict) and existing.get("workspaceAlias"):
+                existing_canonical = str(existing.get("canonicalPersonId") or "")
+                if existing_canonical == str(
+                    normalized.get("canonicalPersonId") or ""
+                ):
+                    normalized["workspaceAlias"] = _normalize_workspace_alias(
+                        existing.get("workspaceAlias"),
+                        draft_id=draft_id,
+                        canonical_person_id=existing_canonical,
+                    )
             drafts[draft_id] = normalized
             self._write(data)
-            return deepcopy(normalized)
+            result = deepcopy(normalized)
+            result.pop("manualSourceRefs", None)
+            return result
+
+    def record_workspace_alias(
+        self,
+        workflow_ref: object,
+        project_id: object,
+        client_person_id: object,
+        canonical_person_id: object,
+        request_mode: object,
+        request_hash: object,
+    ) -> dict[str, Any]:
+        """Persist a server-verified hosted alias receipt for an active draft."""
+
+        safe_client_id = _require_uuid(client_person_id, "clientPersonId")
+        safe_project_id = _require_identifier(project_id, "projectId")
+        safe_canonical_id = _require_identifier(
+            canonical_person_id, "canonicalPersonId"
+        )
+        marker = {
+            "state": "synced",
+            "clientPersonId": safe_client_id,
+            "canonicalPersonId": safe_canonical_id,
+            "requestMode": str(request_mode or ""),
+            "requestHash": _require_sha256(request_hash, "requestHash"),
+        }
+        with self._lock:
+            data = self._read()
+            binding = self._find(data, str(workflow_ref or ""))
+            bound_project_id = str(binding.get("project_id") or "")
+            if bound_project_id != safe_project_id:
+                raise BindingConflictError(
+                    "This workflow is not associated with the selected project."
+                )
+            drafts = binding.get("person_drafts")
+            draft = drafts.get(safe_client_id) if isinstance(drafts, dict) else None
+            if not isinstance(draft, dict):
+                raise BindingConflictError(
+                    "The local person awaiting workspace linking no longer exists."
+                )
+            existing_canonical = str(draft.get("canonicalPersonId") or "")
+            if existing_canonical and existing_canonical != safe_canonical_id:
+                raise BindingConflictError(
+                    "The local person is already mapped to a different project person."
+                )
+            draft["canonicalPersonId"] = safe_canonical_id
+            draft["workspaceAlias"] = _normalize_workspace_alias(
+                marker,
+                draft_id=safe_client_id,
+                canonical_person_id=safe_canonical_id,
+            )
+            self._write(data)
+            return deepcopy(draft)
 
     def delete_person_draft(
         self,
@@ -593,6 +843,8 @@ class BindingStore:
                 workflow_kind=kind,
                 graph_hash=graph_hash,
                 sources=body.get("sources"),
+                identity_review_hash=body.get("identityReviewHash"),
+                identity_revision=body.get("identityRevision"),
             )
             payload["baseManifestVersion"] = _require_nonnegative_int(
                 body.get("baseManifestVersion"), "baseManifestVersion"
@@ -613,6 +865,8 @@ class BindingStore:
             workflow_kind=payload.get("workflowKind"),
             graph_hash=payload.get("graphHash"),
             sources=payload.get("sources"),
+            identity_review_hash=payload.get("identityReviewHash"),
+            identity_revision=payload.get("identityRevision"),
         )
         if normalized["manifestHash"] != payload.get("manifestHash"):
             raise ValueError("manifestHash does not match the normalized rights manifest.")
@@ -626,6 +880,10 @@ class BindingStore:
             binding["workflow_kind"] = normalized["workflowKind"]
             if normalized.get("graphHash"):
                 binding["graph_hash"] = normalized["graphHash"]
+            if normalized.get("identityReviewHash"):
+                binding["identity_review_hash"] = normalized["identityReviewHash"]
+            if normalized.get("identityRevision") is not None:
+                binding["identity_revision"] = normalized["identityRevision"]
             binding["manifest_hash"] = normalized["manifestHash"]
             self._write(data)
             return self._public(binding)

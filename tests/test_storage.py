@@ -67,3 +67,89 @@ def test_private_json_write_works_without_posix_fchmod(tmp_path, monkeypatch):
     storage.write_private_json(str(path), {"token": "local-only"})
 
     assert json.loads(path.read_text(encoding="utf-8")) == {"token": "local-only"}
+
+
+def test_persistent_data_dir_migrates_legacy_state_and_retains_backup(tmp_path):
+    plugin_dir = tmp_path / "custom_nodes" / "comfyui-pluribus"
+    legacy = plugin_dir / "data"
+    identity = legacy / "identity" / "links"
+    identity.mkdir(parents=True)
+    (legacy / "connection.json").write_text(
+        '{"token":"legacy-private-token"}', encoding="utf-8"
+    )
+    (legacy / "bindings.json").write_text('{"version":1}', encoding="utf-8")
+    (identity / "review.json").write_text('{"revision":4}', encoding="utf-8")
+    comfy_user = tmp_path / "comfy-user"
+
+    resolved = storage.resolve_private_data_dir(
+        str(plugin_dir),
+        comfyui_user_dir=str(comfy_user),
+        platform_root=str(tmp_path / "unused-platform"),
+    )
+
+    destination = comfy_user / "pluribus"
+    assert resolved == str(destination)
+    assert json.loads((destination / "connection.json").read_text(encoding="utf-8")) == {
+        "token": "legacy-private-token"
+    }
+    assert (destination / "identity" / "links" / "review.json").exists()
+    assert (legacy / "connection.json").exists()
+    backups = list((destination / "migration-backups").glob("legacy-*"))
+    assert len(backups) == 1
+    assert (backups[0] / "connection.json").exists()
+    assert not (tmp_path / "unused-platform").exists()
+
+
+def test_legacy_migration_never_overwrites_persistent_state(tmp_path):
+    plugin_dir = tmp_path / "plugin"
+    legacy = plugin_dir / "data"
+    destination = tmp_path / "persistent"
+    legacy.mkdir(parents=True)
+    destination.mkdir()
+    (legacy / "connection.json").write_text('{"token":"legacy"}', encoding="utf-8")
+    (destination / "connection.json").write_text(
+        '{"token":"current"}', encoding="utf-8"
+    )
+
+    resolved = storage.resolve_private_data_dir(
+        str(plugin_dir),
+        configured_dir=str(destination),
+        comfyui_user_dir=str(tmp_path / "unused-user"),
+    )
+
+    assert resolved == str(destination)
+    assert json.loads((destination / "connection.json").read_text(encoding="utf-8")) == {
+        "token": "current"
+    }
+    assert json.loads((legacy / "connection.json").read_text(encoding="utf-8")) == {
+        "token": "legacy"
+    }
+
+
+def test_legacy_migration_receipt_prevents_deleted_state_from_reappearing(tmp_path):
+    plugin_dir = tmp_path / "plugin"
+    legacy = plugin_dir / "data"
+    destination = tmp_path / "persistent"
+    legacy.mkdir(parents=True)
+    (legacy / "connection.json").write_text(
+        '{"token":"legacy"}', encoding="utf-8"
+    )
+
+    assert storage.migrate_private_data_dir(str(legacy), str(destination)) is True
+    copied = destination / "connection.json"
+    copied.unlink()
+
+    assert storage.migrate_private_data_dir(str(legacy), str(destination)) is False
+    assert not copied.exists()
+
+
+def test_legacy_migration_skips_destination_nested_inside_legacy_tree(tmp_path):
+    legacy = tmp_path / "plugin" / "data"
+    destination = legacy / "persistent"
+    legacy.mkdir(parents=True)
+    (legacy / "connection.json").write_text(
+        '{"token":"legacy"}', encoding="utf-8"
+    )
+
+    assert storage.migrate_private_data_dir(str(legacy), str(destination)) is False
+    assert not destination.exists()
