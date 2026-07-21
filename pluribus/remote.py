@@ -9,6 +9,7 @@ in memory, so a ComfyUI restart mid-pairing simply means starting over.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -315,16 +316,19 @@ async def fetch_project(
     )
 
 
-async def create_project_person(
-    connection_path: str,
-    project_id: str,
-    body: dict,
-    fetch: Fetch | None = None,
-) -> tuple[int, dict]:
-    project_id = _opaque_id(project_id, "projectId")
+def normalize_project_person_payload(body: object) -> dict[str, Any]:
+    """Return the exact allow-listed body sent to the hosted people route."""
+
     payload = _pick(
         body,
-        ("mode", "displayName", "talentRecordId", "talentEmail", "role"),
+        (
+            "mode",
+            "displayName",
+            "talentRecordId",
+            "talentEmail",
+            "role",
+            "clientPersonId",
+        ),
     )
     representative = body.get("representative") if isinstance(body, dict) else None
     if representative not in (None, ""):
@@ -333,6 +337,30 @@ async def create_project_person(
         payload["talentRecordId"] = _opaque_id(
             payload["talentRecordId"], "talentRecordId"
         )
+    if payload.get("clientPersonId"):
+        try:
+            payload["clientPersonId"] = str(uuid.UUID(str(payload["clientPersonId"])))
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValueError("clientPersonId must be a UUID.") from exc
+    return payload
+
+
+def project_person_request_hash(body: object) -> str:
+    payload = normalize_project_person_payload(body)
+    material = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    )
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()
+
+
+async def create_project_person(
+    connection_path: str,
+    project_id: str,
+    body: dict,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    payload = normalize_project_person_payload(body)
     return await _proxy_json(
         connection_path,
         "POST",
@@ -381,6 +409,12 @@ async def put_project_source_links(
         workflow_kind=body.get("workflowKind") if isinstance(body, dict) else None,
         graph_hash=body.get("graphHash") if isinstance(body, dict) else None,
         sources=body.get("sources") if isinstance(body, dict) else None,
+        identity_review_hash=(
+            body.get("identityReviewHash") if isinstance(body, dict) else None
+        ),
+        identity_revision=(
+            body.get("identityRevision") if isinstance(body, dict) else None
+        ),
     )
     supplied_manifest = str(body.get("manifestHash") or "")
     if supplied_manifest and supplied_manifest != payload["manifestHash"]:

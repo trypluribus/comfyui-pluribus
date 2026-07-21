@@ -44,33 +44,27 @@ if _HERE not in sys.path:
 def _resolve_data_dir() -> str:
     """Writable directory for private connection and workflow-binding state.
 
-    Cloud-hosted ComfyUI often mounts custom_nodes read-only; fall back from
-    PLURIBUS_DATA_DIR -> <plugin>/data -> a per-user temp dir so the plugin
-    keeps working instead of crashing on first project link.
+    Prefer an explicit override, then ComfyUI's persistent user directory. A
+    legacy private ``<plugin>/data`` tree is copied non-destructively on first
+    use so replacing the plugin checkout cannot discard credentials or review
+    state.
     """
-    candidates = [
-        os.environ.get("PLURIBUS_DATA_DIR"),
-        os.path.join(_HERE, "data"),
-    ]
-    for candidate in candidates:
-        if not candidate:
-            continue
-        try:
-            from pluribus.storage import ensure_private_dir
+    comfyui_user_dir = None
+    try:
+        import folder_paths  # type: ignore[import-not-found]
 
-            ensure_private_dir(candidate)
-            if os.access(candidate, os.W_OK):
-                return candidate
-        except OSError:
-            continue
-    from pluribus.storage import fallback_private_data_dir
+        getter = getattr(folder_paths, "get_user_directory", None)
+        if getter:
+            comfyui_user_dir = getter()
+    except ImportError:
+        pass
+    from pluribus.storage import resolve_private_data_dir
 
-    fallback = fallback_private_data_dir(_HERE)
-    print(
-        "[Pluribus] Plugin directory is not writable; private plugin state will be "
-        f"stored in {fallback} (set PLURIBUS_DATA_DIR to override)."
+    return resolve_private_data_dir(
+        _HERE,
+        configured_dir=os.environ.get("PLURIBUS_DATA_DIR"),
+        comfyui_user_dir=comfyui_user_dir,
     )
-    return fallback
 
 
 try:

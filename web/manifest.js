@@ -181,7 +181,12 @@ export function manifestOverridesForLocalReviews(
   return merged;
 }
 
-export function canonicalRightsManifest(workflowRef, sources, workflowKind = "other") {
+export function canonicalRightsManifest(
+  workflowRef,
+  sources,
+  workflowKind = "other",
+  identityReviewHash = ""
+) {
   const normalized = (sources || [])
     .map((source) => ({
       sourceRef: String(source.sourceRef || ""),
@@ -208,13 +213,19 @@ export function canonicalRightsManifest(workflowRef, sources, workflowKind = "ot
   return stableJson({
     workflowRef: String(workflowRef || ""),
     workflowKind: String(workflowKind || "other"),
+    ...(identityReviewHash ? { identityReviewHash: String(identityReviewHash).toLowerCase() } : {}),
     sources: normalized,
   });
 }
 
-export async function rightsManifestHash(workflowRef, sources, workflowKind = "other") {
+export async function rightsManifestHash(
+  workflowRef,
+  sources,
+  workflowKind = "other",
+  identityReviewHash = ""
+) {
   const bytes = new TextEncoder().encode(
-    canonicalRightsManifest(workflowRef, sources, workflowKind)
+    canonicalRightsManifest(workflowRef, sources, workflowKind, identityReviewHash)
   );
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");

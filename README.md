@@ -122,19 +122,21 @@ OpenCV model repository. The plugin does not silently download models or run
 Image and video bytes stay inside the configured ComfyUI input, output, and
 temporary directories. Face embeddings exist only in memory for the current
 analysis. Derived portrait crops, evidence sheets, job state, and cache entries
-are private local files under `PLURIBUS_DATA_DIR/identity` (or the plugin's
-private `data/identity` fallback). They are not sent when the user connects a
-Pluribus account.
+are private local files under `PLURIBUS_DATA_DIR/identity` when that override
+is set, or under ComfyUI's persistent user directory by default. They are not
+sent when the user connects a Pluribus account.
 
 Run ComfyUI on loopback or behind authentication you trust. The plugin's
 same-origin `/pluribus/*` routes can read and mutate the paired workspace using
 the device token; exposing an otherwise unauthenticated ComfyUI server to a LAN
 or the public internet also exposes that local proxy surface.
 
-If the plugin directory is read-only, set `PLURIBUS_DATA_DIR` to a private,
-writable directory before starting ComfyUI. Otherwise, the plugin tries its
-private `data/` directory and then a per-user temporary location. Do not point
-two running ComfyUI processes at the same data directory.
+Set `PLURIBUS_DATA_DIR` when you need an explicit private location. Otherwise,
+the plugin uses `<ComfyUI user directory>/pluribus`, so replacing the custom
+node directory does not replace credentials, review work, or workflow
+bindings. On first use, legacy `<plugin>/data` state is copied without deleting
+or overwriting it, and a private migration backup is retained. Do not point two
+running ComfyUI processes at the same data directory.
 
 ## First use
 
@@ -186,6 +188,12 @@ then confirms whether the group is the same person, reviews the included
 appearances, and may add a working name or character role. Explicit filename
 labels such as `layla_character_sheet.png` may prefill a working suggestion;
 the model does not discover a legal identity from a face.
+
+After review, confirmed visual groups collapse into one project-person card
+with aggregate source and appearance counts. **Assign selected appearances**
+moves only the checked occurrences; **Combine identities** is a separate,
+explicit project-local action that rewrites aliases to a chosen survivor and
+keeps audit tombstones. Name or email similarity never combines people.
 
 The system remains deliberately conservative. Crowds, profiles, occlusion,
 silhouettes, very small faces, twins/lookalikes, makeup, animation, and body-only
@@ -243,9 +251,12 @@ reference images, LoRAs, or prompt sources to the same person. If the detector
 found something that is not a real person, mark it **Not a person**. If the
 classification is unresolved, keep it **Review required**.
 
-Connecting is required to save or link a canonical person, persist the source
-to the Pluribus workspace, or request confirmation. Adding or linking a person
-does not assert permission, representative authority, or legal clearance.
+Identity review can be saved locally while disconnected. The panel reports
+**Saved locally**, **Sync pending**, **Reconnect required**, or **Synced** and
+retries the durable identity outbox on startup, panel load, reconnection, and
+explicit retry. Canonical workspace creation/linking still requires a
+connection, and adding or linking a person does not assert permission,
+representative authority, or legal clearance.
 
 ### 4. Set intended use
 
@@ -376,8 +387,9 @@ workspace record:
 
 The pairing label is the generic `ComfyUI plugin`; the local hostname is not
 sent. The frontend uses the system font stack and does not request Google Fonts.
-The plugin token and private workflow/source mappings are stored in the plugin
-data directory. Treat that directory as sensitive local application state.
+The plugin token, private identity review, and workflow/source mappings are
+stored under `PLURIBUS_DATA_DIR` or ComfyUI's persistent user directory. Treat
+that directory as sensitive local application state.
 
 **Disconnect** removes the local token only after server-side revocation is
 confirmed, or after a `401` proves the token is already unusable. If Pluribus is
@@ -415,7 +427,6 @@ identities.
   nodes require explicit support or manual review.
 - The panel has no manual normalized AI-action override yet; marker-only graphs
   do not verify downstream action inference or a render-ready production path.
-- Link-only retry identity does not yet survive a request-dialog reload.
 
 For dated test coverage and known verification gaps, see the
 [RC2 rehearsal record](docs/release-rehearsal-2026-07-13.md).

@@ -30,6 +30,7 @@ const state = {
   identityModelsInstalling: false,
   identityLinks: [], // candidate-specific confirmations; do not infer identity from shared sources
   identityLinksRevision: null, // compare-and-set revision for the current analysis link document
+  identitySyncState: "saved_local", // saved_local | sync_pending | reconnect_required | synced
 };
 
 const listeners = new Set();
@@ -69,6 +70,7 @@ export function invalidateScan() {
     identityError: null,
     identityLinks: [],
     identityLinksRevision: null,
+    identitySyncState: "saved_local",
   });
 }
 

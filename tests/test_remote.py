@@ -584,6 +584,30 @@ def test_workspace_project_and_person_proxies_send_only_contract_fields(tmp_path
     }
 
 
+def test_project_person_proxy_forwards_stable_client_person_id(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
+    fetch = make_fetch([(201, {"person": {"id": "person-1"}})])
+    client_person_id = "11111111-1111-4111-8111-111111111111"
+
+    status, _ = run(
+        remote.create_project_person(
+            path,
+            "project-1",
+            {
+                "mode": "new",
+                "displayName": "Alex Person",
+                "clientPersonId": client_person_id,
+            },
+            fetch,
+        )
+    )
+
+    assert status == 201
+    assert fetch.calls[0]["payload"]["clientPersonId"] == client_person_id
+
+
+
 def test_project_person_update_is_patch_scoped_and_cannot_write_talent_profile(tmp_path):
     path = connection_path(tmp_path)
     remote.write_connection(path, {"server_url": "https://x", "token": "plt_token"})
@@ -653,6 +677,8 @@ def test_source_links_proxy_strips_paths_prompts_and_node_ids(tmp_path):
         "workflowKind": "storyboard",
         "baseManifestVersion": 3,
         "graphHash": "a" * 64,
+        "identityReviewHash": "c" * 64,
+        "identityRevision": 7,
         "sources": [
             {
                 "sourceRef": "b" * 64,
@@ -676,6 +702,8 @@ def test_source_links_proxy_strips_paths_prompts_and_node_ids(tmp_path):
     assert payload["workflowRef"] == workflow_ref
     assert payload["baseManifestVersion"] == 3
     assert payload["graphHash"] == "a" * 64
+    assert payload["identityReviewHash"] == "c" * 64
+    assert payload["identityRevision"] == 7
     assert payload["sources"][0]["operations"] == [{"classType": "IPAdapter"}]
     serialized = json.dumps(payload)
     assert "private-face" not in serialized

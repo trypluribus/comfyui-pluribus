@@ -56,6 +56,10 @@ class IdentityConflictError(ValueError):
     """Raised when producer links changed after a client last read them."""
 
 
+class IdentityPersistenceError(ValueError):
+    """Raised when private state cannot be safely read or recovered."""
+
+
 def discover_comfyui_media_roots() -> list[str]:
     roots: list[str] = []
     configured = os.environ.get("PLURIBUS_IDENTITY_MEDIA_ROOTS", "")
@@ -621,6 +625,10 @@ class IdentityAnalysisService:
         return path
 
     def get_links(self, job_id: str) -> dict:
+        with self._lock:
+            return self._get_links_locked(job_id)
+
+    def _get_links_locked(self, job_id: str) -> dict:
         job = self._get_job_record(job_id)
         path = self._links_path_for_job(job)
         if not os.path.isfile(path):
@@ -631,6 +639,10 @@ class IdentityAnalysisService:
         cached = self._read_cache(job.get("cacheKey", "")) or {}
         occurrences_by_candidate = {
             str(candidate.get("candidateId")): set(candidate.get("occurrenceIds") or [])
+            for candidate in cached.get("candidates", [])
+        }
+        sources_by_candidate = {
+            str(candidate.get("candidateId")): set(candidate.get("sourceRefs") or [])
             for candidate in cached.get("candidates", [])
         }
         links = []
@@ -647,6 +659,20 @@ class IdentityAnalysisService:
                 if not retained:
                     continue
                 stored_link = {**stored_link, "occurrenceIds": retained}
+            selected_sources = stored_link.get(
+                "sourceRefs", stored_link.get("source_refs")
+            )
+            if isinstance(selected_sources, list):
+                retained_sources = sorted(
+                    set(str(value) for value in selected_sources)
+                    & sources_by_candidate.get(candidate_id, set())
+                )
+                if not retained_sources and not occurrences_by_candidate[candidate_id]:
+                    continue
+                stored_link = {
+                    **stored_link,
+                    "sourceRefs": retained_sources,
+                }
             links.append(stored_link)
         return {"jobId": job_id, "links": links, "revision": revision}
 
@@ -655,6 +681,20 @@ class IdentityAnalysisService:
             return self._put_links_locked(job_id, body)
 
     def _put_links_locked(self, job_id: str, body: object) -> dict:
+        links_path, document, response = self._prepare_links_locked(job_id, body)
+        write_private_json(links_path, document)
+        return response
+
+    def _prepare_links_locked(
+        self, job_id: str, body: object
+    ) -> tuple[str, dict, dict]:
+        """Validate one CAS link write without persisting it.
+
+        The identity-decision coordinator uses this private preparation hook to
+        commit links and person drafts through one recoverable local journal.
+        The public ``put_links`` behavior remains unchanged.
+        """
+
         job = self._get_job_record(job_id)
         if job["state"] != "completed":
             raise ValueError("Links can be saved only for a completed analysis job.")
@@ -682,6 +722,10 @@ class IdentityAnalysisService:
         cached = self._read_cache(job["cacheKey"]) or {}
         candidate_occurrences = {
             str(candidate.get("candidateId")): set(candidate.get("occurrenceIds") or [])
+            for candidate in cached.get("candidates", [])
+        }
+        candidate_sources = {
+            str(candidate.get("candidateId")): set(candidate.get("sourceRefs") or [])
             for candidate in cached.get("candidates", [])
         }
         normalized: list[PersonLink] = []
@@ -736,6 +780,30 @@ class IdentityAnalysisService:
                             "One occurrence cannot be confirmed for two different people."
                         )
                     confirmed_occurrence_owners[owner_key] = person_id
+            selected_source_value = value.get(
+                "sourceRefs", value.get("source_refs")
+            )
+            selected_source_refs: tuple[str, ...] = ()
+            if selected_source_value is not None:
+                if not isinstance(selected_source_value, list) or not selected_source_value:
+                    raise ValueError(
+                        "sourceRefs must be a non-empty list when supplied."
+                    )
+                if candidate_occurrences[candidate_id]:
+                    raise ValueError(
+                        "sourceRefs may be selected only for a candidate without appearances."
+                    )
+                if len(selected_source_value) > 500:
+                    raise ValueError("sourceRefs may contain at most 500 entries.")
+                selected_source_refs = tuple(
+                    sorted({str(source_ref) for source_ref in selected_source_value})
+                )
+                if not set(selected_source_refs) <= candidate_sources.get(
+                    candidate_id, set()
+                ):
+                    raise ValueError(
+                        "Every sourceRef must belong to the selected candidate in this job."
+                    )
             normalized.append(
                 PersonLink(
                     candidate_id=candidate_id,
@@ -743,6 +811,7 @@ class IdentityAnalysisService:
                     state=state,
                     display_name=str(value.get("displayName") or "")[:160],
                     occurrence_ids=selected_occurrences,
+                    source_refs=selected_source_refs,
                 )
             )
         links = [
@@ -752,17 +821,18 @@ class IdentityAnalysisService:
             )
         ]
         next_revision = current_revision + 1
-        write_private_json(
+        document = {
+            "schemaVersion": 3,
+            "analysisJobId": job_id,
+            "analysisCacheKey": job.get("cacheKey"),
+            "revision": next_revision,
+            "links": links,
+        }
+        return (
             links_path,
-            {
-                "schemaVersion": 3,
-                "analysisJobId": job_id,
-                "analysisCacheKey": job.get("cacheKey"),
-                "revision": next_revision,
-                "links": links,
-            },
+            document,
+            {"jobId": job_id, "links": links, "revision": next_revision},
         )
-        return {"jobId": job_id, "links": links, "revision": next_revision}
 
     def delete_links(self, job_id: str, body: object) -> dict:
         with self._lock:

@@ -5,12 +5,21 @@
 
 import { disconnectPluribus, getConnection, pollConnect, startConnect } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
+import {
+  refreshIdentityWorkspaceSyncState,
+  retryIdentityWorkspaceSync,
+} from "./identity-analysis.js";
 import { getState, setState } from "./store.js";
 
 export async function refreshConnection() {
   try {
     const connection = await getConnection();
     setState({ connection });
+    if (connection?.state === "connected") {
+      void retryIdentityWorkspaceSync();
+    } else {
+      void refreshIdentityWorkspaceSyncState();
+    }
     return connection;
   } catch {
     // Local route unavailable (very old ComfyUI); leave connection unknown.

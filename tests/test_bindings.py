@@ -322,6 +322,55 @@ def test_local_person_draft_upsert_replaces_fields_and_delete_is_scoped(tmp_path
     assert store.list_person_drafts(other_workflow["workflowRef"]) == [other]
 
 
+def test_workspace_alias_receipt_survives_restart_and_public_put_cannot_forge_it(
+    tmp_path,
+):
+    path = str(tmp_path / "bindings.json")
+    store = BindingStore(path)
+    workflow = store.resolve_workflow("workspace-alias-workflow")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    draft = store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "canonicalPersonId": "canonical-person",
+            "displayName": "Alex",
+            "sourceRefs": [source],
+        },
+    )
+    marker = {
+        "state": "synced",
+        "clientPersonId": draft["draftId"],
+        "canonicalPersonId": "canonical-person",
+        "requestMode": "new",
+        "requestHash": "a" * 64,
+    }
+    data = store._read()
+    binding = store._find(data, workflow["workflowRef"])
+    binding["person_drafts"][draft["draftId"]]["workspaceAlias"] = marker
+    store._write(data)
+
+    restarted = BindingStore(path)
+    assert restarted.list_person_drafts(workflow["workflowRef"])[0][
+        "workspaceAlias"
+    ] == marker
+    updated = restarted.put_person_draft(
+        workflow["workflowRef"],
+        {
+            **draft,
+            "displayName": "Alex Updated",
+            "workspaceAlias": {
+                **marker,
+                "requestHash": "b" * 64,
+            },
+        },
+    )
+
+    assert updated["displayName"] == "Alex Updated"
+    assert updated["workspaceAlias"] == marker
+
+
 @pytest.mark.parametrize(
     "body, message",
     [
@@ -542,3 +591,49 @@ def test_manifest_hash_matches_typescript_contract_example():
     assert payload["manifestHash"] == (
         "1c8d11070aa7066dafda1e7944614fc9ed95d88b9a4f6119f8d80ac1618caa7c"
     )
+
+
+def test_identity_review_hash_changes_manifest_and_revision_is_forwarded_only():
+    workflow_ref = str(uuid.uuid4())
+    source = {
+        "sourceRef": "a" * 64,
+        "sourceKind": "reference",
+        "disposition": "review_required",
+        "talentRecordIds": [],
+        "operations": [],
+    }
+    legacy = normalize_source_links(
+        workflow_ref=workflow_ref,
+        workflow_kind="production",
+        graph_hash=None,
+        sources=[source],
+    )
+    first = normalize_source_links(
+        workflow_ref=workflow_ref,
+        workflow_kind="production",
+        graph_hash=None,
+        sources=[source],
+        identity_review_hash="b" * 64,
+        identity_revision=7,
+    )
+    newer_revision = normalize_source_links(
+        workflow_ref=workflow_ref,
+        workflow_kind="production",
+        graph_hash=None,
+        sources=[source],
+        identity_review_hash="b" * 64,
+        identity_revision=8,
+    )
+
+    assert first["identityReviewHash"] == "b" * 64
+    assert first["identityRevision"] == 7
+    assert first["manifestHash"] != legacy["manifestHash"]
+    assert newer_revision["manifestHash"] == first["manifestHash"]
+    with pytest.raises(ValueError, match="identityReviewHash"):
+        normalize_source_links(
+            workflow_ref=workflow_ref,
+            workflow_kind="production",
+            graph_hash=None,
+            sources=[source],
+            identity_review_hash="not-a-hash",
+        )

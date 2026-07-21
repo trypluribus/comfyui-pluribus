@@ -61,8 +61,9 @@ git clone --branch v0.4.0 --depth 1 \
 Restart ComfyUI and open **Pluribus** in the sidebar. A clean production
 install should show no demo talent and no pre-existing permission state.
 
-If the plugin directory is read-only, set a private writable data directory
-before starting ComfyUI:
+The plugin stores private state in ComfyUI's persistent user directory by
+default. Set an explicit private writable directory before starting ComfyUI
+only when you need to override that location:
 
 ```bash
 export PLURIBUS_DATA_DIR="$HOME/.local/share/comfyui-pluribus"
@@ -104,6 +105,14 @@ whether its pixels truly contain a person. Unreleased `main` adds optional local
 face detection and within-project visual-similarity grouping; see
 [Local identity analysis](local-identity-analysis.md). That analysis does not
 discover a legal identity or prove permission.
+
+On unreleased `main`, use **Assign selected appearances** when only the checked
+occurrences should move to another local/project person. Use **Combine
+identities** only when you explicitly intend one project-local survivor; the
+superseded draft remains as an audit tombstone. Confirmed visual groups then
+render as one person card, while unresolved machine groups remain separate.
+Disconnected saves remain local and display a durable sync state until
+reconnection and full workspace-manifest convergence succeed.
 
 At this stage, finding a source creates no person, permission, or confirmation
 record in Pluribus.
@@ -409,8 +418,12 @@ remote manifest.
 
 ## 12. Restart and disconnect safely
 
-Restart ComfyUI with the same `PLURIBUS_DATA_DIR`, reopen the workflow, and
-verify that its project and opaque source bindings are recovered.
+Restart ComfyUI with the same `PLURIBUS_DATA_DIR` when you set one; otherwise
+reuse the same ComfyUI user directory. Reopen the workflow and verify that its
+project, local identity decisions, and opaque source bindings are recovered.
+The first startup with this version copies missing legacy `<plugin>/data`
+files into persistent storage and retains a private backup without deleting the
+legacy files.
 
 Keep ComfyUI bound to loopback or protect the whole server with trusted
 authentication. The plugin's same-origin local routes act with the paired

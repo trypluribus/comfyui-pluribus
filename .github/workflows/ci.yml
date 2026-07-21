@@ -55,8 +55,11 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install browser test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Test browser contracts
-        run: node --test web/tests/contracts.test.mjs
+        run: npm test
 
   required:
     name: Plugin CI

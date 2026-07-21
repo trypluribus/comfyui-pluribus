@@ -19,6 +19,7 @@ from pluribus.identity_service import (
     IdentityAnalysisService,
     IdentityCapacityError,
     IdentityConflictError,
+    IdentityPersistenceError,
 )
 from pluribus.storage import write_private_json
 
@@ -87,6 +88,145 @@ def response_json(response):
     return json.loads(response.body.decode("utf-8"))
 
 
+def test_identity_decision_and_reconciliation_routes_use_local_coordinator(tmp_path):
+    class FakeDecisions:
+        def __init__(self):
+            self.calls = []
+
+        def put_decision(self, job_id, body):
+            self.calls.append((job_id, body))
+            return {
+                "jobId": job_id,
+                "revision": 4,
+                "links": [],
+                "personDrafts": [],
+                "syncState": "saved_local",
+                "syncDetails": {
+                    "state": "saved_local",
+                    "entryId": "entry-1",
+                    "workflowRef": "workflow-1",
+                },
+            }
+
+        async def drain_sync_entry(self, _entry_id):
+            raise OSError("offline")
+
+        def reconciliation_preview(self, job_id):
+            return {"jobId": job_id, "readOnly": True}
+
+        async def drain_pending_async(self):
+            return []
+
+        def sync_status(self):
+            return []
+
+        def mark_workflow_revision_synced(self, *_args):
+            return []
+
+    decisions = FakeDecisions()
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        identity_service=object(),
+        identity_decision_service=decisions,
+    )
+    decision = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/identity/jobs/{job_id}/decision")
+    ]
+    preview = prompt_server.routes.handlers[
+        ("GET", "/pluribus/identity/jobs/{job_id}/reconciliation")
+    ]
+
+    response = run(
+        decision(
+            FakeRequest(
+                {"baseRevision": 3, "candidateId": "candidate-a"},
+                {"job_id": "job-1"},
+            )
+        )
+    )
+    assert response_json(response)["syncState"] == "saved_local"
+    assert decisions.calls == [
+        ("job-1", {"baseRevision": 3, "candidateId": "candidate-a"})
+    ]
+    assert response_json(
+        run(preview(FakeRequest(None, {"job_id": "job-1"})))
+    ) == {"jobId": "job-1", "readOnly": True}
+
+
+def test_identity_persistence_failure_maps_to_http_503(tmp_path):
+    class BrokenDecisions:
+        def put_decision(self, _job_id, _body):
+            raise IdentityPersistenceError("Private identity journal is corrupt.")
+
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        identity_service=object(),
+        identity_decision_service=BrokenDecisions(),
+    )
+    handler = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/identity/jobs/{job_id}/decision")
+    ]
+
+    response = run(
+        handler(FakeRequest({}, {"job_id": "job-1"}))
+    )
+
+    assert response.status == 503
+    assert "corrupt" in response_json(response)["message"]
+
+
+def test_post_commit_malformed_sync_response_does_not_turn_local_save_into_error(
+    tmp_path,
+):
+    class MalformedDrainDecisions:
+        def put_decision(self, job_id, _body):
+            return {
+                "jobId": job_id,
+                "revision": 1,
+                "links": [],
+                "personDrafts": [],
+                "syncState": "sync_pending",
+                "syncDetails": {
+                    "state": "sync_pending",
+                    "entryId": "entry-1",
+                    "workflowRef": "workflow-1",
+                },
+            }
+
+        async def drain_sync_entry(self, _entry_id):
+            raise IdentityPersistenceError("Malformed successful workspace response.")
+
+        async def drain_pending_async(self):
+            return []
+
+        def sync_status(self):
+            return []
+
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        identity_service=object(),
+        identity_decision_service=MalformedDrainDecisions(),
+    )
+    handler = prompt_server.routes.handlers[
+        ("PUT", "/pluribus/identity/jobs/{job_id}/decision")
+    ]
+
+    response = run(handler(FakeRequest({}, {"job_id": "job-1"})))
+
+    assert response.status == 200
+    assert response_json(response)["revision"] == 1
+    assert response_json(response)["syncState"] == "sync_pending"
+
+
 def test_protected_routes_reject_cross_site_requests_and_non_json_bodies(tmp_path):
     prompt_server = FakePromptServer()
     register_routes(
@@ -134,6 +274,8 @@ def test_every_state_changing_route_uses_the_same_origin_guard():
     assert "@routes.put(" not in source
     assert "@routes.patch(" not in source
     assert "@routes.delete(" not in source
+    assert '@_mutation_route(routes.get, "/pluribus/connect")' in source
+    assert '@_mutation_route(routes.get, "/pluribus/identity/sync")' in source
 
 
 def test_identity_json_responses_are_never_cached(tmp_path):
@@ -1018,6 +1160,125 @@ def test_project_person_patch_route_forwards_current_project_identifiers(
             },
         },
     }
+
+
+def test_direct_project_person_new_and_replay_persist_verified_workspace_alias(
+    tmp_path, monkeypatch
+):
+    bindings_path = str(tmp_path / "bindings.json")
+    store = BindingStore(bindings_path)
+    workflow = store.resolve_workflow("direct-person-workflow")
+    store.associate(workflow["workflowRef"], "project-1", "production")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    draft = store.put_person_draft(
+        workflow["workflowRef"],
+        {"displayName": "Alex", "sourceRefs": [source]},
+    )
+    calls = []
+
+    async def create_project_person(_connection_path, project_id, body):
+        calls.append((project_id, body))
+        assert "workflowRef" not in body
+        return 201, {
+            "person": {"id": "33333333-3333-4333-8333-333333333333"}
+        }
+
+    monkeypatch.setattr(remote, "create_project_person", create_project_person)
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        connection_path=str(tmp_path / "connection.json"),
+        bindings_path=bindings_path,
+    )
+    handler = prompt_server.routes.handlers[
+        ("POST", "/pluribus/projects/{project_id}/people")
+    ]
+    body = {
+        "mode": "new",
+        "workflowRef": workflow["workflowRef"],
+        "clientPersonId": draft["draftId"],
+        "displayName": "Alex",
+    }
+
+    first = run(handler(FakeRequest(body, {"project_id": "project-1"})))
+    replay = run(handler(FakeRequest(body, {"project_id": "project-1"})))
+
+    assert first.status == 201
+    assert replay.status == 201
+    assert len(calls) == 2
+    persisted = BindingStore(bindings_path).list_person_drafts(
+        workflow["workflowRef"]
+    )[0]
+    assert persisted["canonicalPersonId"] == "33333333-3333-4333-8333-333333333333"
+    assert persisted["workspaceAlias"]["requestMode"] == "new"
+    assert persisted["workspaceAlias"]["clientPersonId"] == draft["draftId"]
+
+
+def test_direct_existing_attach_persists_verified_workspace_alias(
+    tmp_path, monkeypatch
+):
+    bindings_path = str(tmp_path / "bindings.json")
+    store = BindingStore(bindings_path)
+    workflow = store.resolve_workflow("direct-existing-workflow")
+    store.associate(workflow["workflowRef"], "project-1", "production")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    canonical_id = "33333333-3333-4333-8333-333333333333"
+    draft = store.put_person_draft(
+        workflow["workflowRef"],
+        {
+            "canonicalPersonId": canonical_id,
+            "displayName": "Alex",
+            "sourceRefs": [source],
+        },
+    )
+    captured = {}
+
+    async def create_project_person(_connection_path, _project_id, body):
+        captured.update(body)
+        return 200, {"person": {"id": canonical_id}}
+
+    monkeypatch.setattr(remote, "create_project_person", create_project_person)
+    prompt_server = FakePromptServer()
+    register_routes(
+        prompt_server,
+        roster_path=None,
+        actions_path=str(tmp_path / "invites.json"),
+        bindings_path=bindings_path,
+    )
+    handler = prompt_server.routes.handlers[
+        ("POST", "/pluribus/projects/{project_id}/people")
+    ]
+    response = run(
+        handler(
+            FakeRequest(
+                {
+                    "mode": "existing",
+                    "workflowRef": workflow["workflowRef"],
+                    "clientPersonId": draft["draftId"],
+                    "talentRecordId": canonical_id,
+                },
+                {"project_id": "project-1"},
+            )
+        )
+    )
+
+    assert response.status == 200
+    assert captured == {
+        "mode": "existing",
+        "clientPersonId": draft["draftId"],
+        "talentRecordId": canonical_id,
+    }
+    persisted = BindingStore(bindings_path).list_person_drafts(
+        workflow["workflowRef"]
+    )[0]
+    assert persisted["workspaceAlias"]["requestMode"] == "existing"
+    assert persisted["workspaceAlias"]["canonicalPersonId"] == canonical_id
 
 
 def test_workspace_project_routes_are_registered(tmp_path):

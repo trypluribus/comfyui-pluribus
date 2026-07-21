@@ -59,6 +59,30 @@ export function saveIdentityLinks(jobId, links, baseRevision) {
   );
 }
 
+export function saveIdentityDecision(jobId, payload) {
+  return requestJson(
+    `/pluribus/identity/jobs/${encodeURIComponent(jobId)}/decision`,
+    jsonInit("PUT", payload)
+  );
+}
+
+export function getIdentityReconciliation(jobId) {
+  return requestJson(
+    `/pluribus/identity/jobs/${encodeURIComponent(jobId)}/reconciliation`
+  );
+}
+
+export function getIdentitySyncStatus() {
+  return requestJson("/pluribus/identity/sync");
+}
+
+export function retryIdentitySync() {
+  return requestJson(
+    "/pluribus/identity/sync/retry",
+    jsonInit("POST", {})
+  );
+}
+
 export async function getRoster() {
   const res = await fetch("/pluribus/roster");
   if (!res.ok) throw new Error(`/pluribus/roster failed with ${res.status}`);

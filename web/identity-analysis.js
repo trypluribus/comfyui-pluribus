@@ -3,7 +3,11 @@ import {
   getIdentityCapabilities,
   getIdentityAnalysisJob,
   getIdentityLinks,
+  getIdentitySyncStatus,
+  getLocalPersonDrafts,
   installIdentityModels,
+  retryIdentitySync,
+  saveIdentityDecision as putIdentityDecision,
   saveIdentityLinks as putIdentityLinks,
   startIdentityAnalysis,
 } from "./api.js";
@@ -239,6 +243,110 @@ export async function commitIdentityLinks(jobId, links, baseRevision) {
     setState({ identityLinks: savedLinks, identityLinksRevision: revision });
   }
   return { links: savedLinks, revision };
+}
+
+export async function commitIdentityDecision(jobId, decision) {
+  if (!jobId) throw new Error("Run identity analysis again before saving this review.");
+  if (!Number.isInteger(decision?.baseRevision) || decision.baseRevision < 0) {
+    throw new Error("Visual identity links do not have a current revision. Reopen this review and try again.");
+  }
+  const payload = await putIdentityDecision(jobId, decision);
+  const links = Array.isArray(payload?.links) ? payload.links : [];
+  const revision = Number.isInteger(payload?.revision) && payload.revision >= 0
+    ? payload.revision
+    : null;
+  if (revision == null) throw new Error("The identity decision did not return a revision.");
+  let syncState = typeof payload?.syncState === "string"
+    ? payload.syncState
+    : payload?.syncState?.state || "saved_local";
+  if (jobIdFor(getState().identityJob) === jobId) {
+    setState({
+      identityLinks: links,
+      identityLinksRevision: revision,
+      ...(Array.isArray(payload?.personDrafts)
+        ? { personDrafts: payload.personDrafts }
+        : {}),
+      identitySyncState: syncState,
+    });
+  }
+  const current = getState();
+  if (
+    syncState === "sync_pending"
+    && jobIdFor(current.identityJob) === jobId
+    && current.scan
+    && current.activeProjectId
+    && current.workflowBinding?.workflowRef
+  ) {
+    try {
+      const { syncCurrentRightsManifest } = await import("./sync-manifest.js");
+      await syncCurrentRightsManifest();
+      syncState = await refreshIdentityWorkspaceSyncState() || syncState;
+    } catch {
+      // The local decision and durable outbox are already committed. Network,
+      // auth, or manifest conflicts remain visible as pending and retry later.
+    }
+  }
+  return { ...payload, links, revision, syncState };
+}
+
+function latestIdentitySyncEntry(payload = {}, workflowRef = "") {
+  const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+  const scoped = workflowRef
+    ? entries.filter((entry) => String(entry?.workflowRef || "") === workflowRef)
+    : entries;
+  return [...scoped].sort((left, right) =>
+    Number(right?.revision || 0) - Number(left?.revision || 0)
+      || String(right?.entryId || "").localeCompare(String(left?.entryId || ""))
+  )[0] || null;
+}
+
+export async function refreshIdentityWorkspaceSyncState() {
+  try {
+    const payload = await getIdentitySyncStatus();
+    const entry = latestIdentitySyncEntry(
+      payload,
+      String(getState().workflowBinding?.workflowRef || "")
+    );
+    const state = String(entry?.state || "");
+    if (["saved_local", "sync_pending", "reconnect_required", "synced"].includes(state)) {
+      setState({ identitySyncState: state });
+      return state;
+    }
+  } catch {
+    // Older local backends do not expose outbox status. Keep the last explicit
+    // state rather than treating an unavailable status route as success.
+  }
+  return null;
+}
+
+export async function retryIdentityWorkspaceSync({ syncManifest = true } = {}) {
+  const workflowRef = String(getState().workflowBinding?.workflowRef || "");
+  try {
+    const payload = await retryIdentitySync();
+    const entry = latestIdentitySyncEntry(payload, workflowRef);
+    const pendingState = String(entry?.state || "sync_pending");
+    if (["saved_local", "sync_pending", "reconnect_required", "synced"].includes(pendingState)) {
+      setState({ identitySyncState: pendingState });
+    }
+    if (workflowRef) {
+      const drafts = await getLocalPersonDrafts(workflowRef);
+      setState({ personDrafts: Array.isArray(drafts?.drafts) ? drafts.drafts : [] });
+    }
+    const current = getState();
+    if (
+      syncManifest
+      && current.connection?.state === "connected"
+      && current.scan
+      && current.activeProjectId
+      && current.workflowBinding?.workflowRef
+    ) {
+      const { syncCurrentRightsManifest } = await import("./sync-manifest.js");
+      await syncCurrentRightsManifest();
+    }
+    return await refreshIdentityWorkspaceSyncState() || pendingState;
+  } catch {
+    return await refreshIdentityWorkspaceSyncState();
+  }
 }
 
 export function identityRevisionConflict(error) {

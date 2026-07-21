@@ -1,60 +1,54 @@
-import { saveLocalPersonDraft, updateProjectPerson } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
 import {
   aggregateIdentityIssues,
   candidateOccurrences,
   coverageLabel,
   groupOccurrencesBySource,
-  identityLinksWithConfirmedDecision,
   identityManualReviewItems,
   identityPresentationGroups,
-  identityLinksWithFalsePositiveDecision,
-  identityLinksWithUnresolvedDecision,
   plainLanguageUseSummary,
   visualGroupingLabel,
 } from "./identity-contract.js";
 import {
   analyzeWorkflowIdentity,
   cancelIdentityAnalysis,
-  commitIdentityLinks,
+  commitIdentityDecision,
   identityRevisionConflict,
   installLocalIdentityModels,
   refreshIdentityLinks,
+  retryIdentityWorkspaceSync,
 } from "./identity-analysis.js";
-import { draftPersonCards, loadPersonDrafts } from "./person-drafts.js";
+import { draftPersonCards } from "./person-drafts.js";
+import {
+  activeIdentityDrafts,
+  logicalIdentityPeople,
+  resolveIdentityPersonId,
+} from "./identity-projection.js";
 import { sourceDisplayLabel, sourceMedia, sourceRecordsForScan } from "./source-records.js";
 import { getState, projectPeople } from "./store.js";
 
 const ONE_OFF_PAGE_SIZE = 24;
 
-export function mergeIdentityDraftSourceRefs(
-  existingSourceRefs = [],
-  candidateSourceRefs = [],
-  selectedSourceRefs = [],
-  preserveOutsideCandidate = true
-) {
-  const candidateScope = new Set((candidateSourceRefs || []).filter(Boolean).map(String));
-  const preserved = preserveOutsideCandidate
-    ? (existingSourceRefs || []).filter((sourceRef) => !candidateScope.has(String(sourceRef)))
-    : [];
-  return [...new Set([...preserved, ...(selectedSourceRefs || [])].filter(Boolean).map(String))];
+export function identitySelectionBucket(decision = "same") {
+  return decision === "false_positive" ? "false_positive" : "person";
 }
 
-export function sourceLinkOverridesForExistingPerson(
-  candidateSourceRefs = [],
-  selectedSourceRefs = [],
-  personId = ""
+export function transitionIdentityOccurrenceSelection(
+  snapshots = new Map(),
+  previousDecision = "same",
+  nextDecision = "same",
+  currentSelection = new Set(),
+  defaultNextSelection = new Set()
 ) {
-  const canonicalPersonId = String(personId || "");
-  if (!canonicalPersonId) return new Map();
-  const selected = new Set((selectedSourceRefs || []).filter(Boolean).map(String));
-  return new Map(
-    [...new Set((candidateSourceRefs || []).filter(Boolean).map(String))]
-      .sort()
-      .map((sourceRef) => [sourceRef, selected.has(sourceRef)
-        ? { addTalentRecordIds: [canonicalPersonId] }
-        : { removeTalentRecordIds: [canonicalPersonId] }])
-  );
+  const nextSnapshots = new Map(snapshots);
+  const previousBucket = identitySelectionBucket(previousDecision);
+  const nextBucket = identitySelectionBucket(nextDecision);
+  nextSnapshots.set(previousBucket, new Set(currentSelection || []));
+  const selection = nextSnapshots.has(nextBucket)
+    ? new Set(nextSnapshots.get(nextBucket))
+    : new Set(defaultNextSelection || []);
+  nextSnapshots.set(nextBucket, new Set(selection));
+  return { snapshots: nextSnapshots, selection };
 }
 
 function candidateName(candidate, index = 0) {
@@ -141,7 +135,7 @@ function existingPersonChoice(person = {}, draft = null) {
 }
 
 export function existingIdentityChoices(personDrafts = [], canonicalPeople = []) {
-  const drafts = Array.isArray(personDrafts) ? personDrafts : [];
+  const drafts = activeIdentityDrafts(personDrafts);
   const people = Array.isArray(canonicalPeople) ? canonicalPeople : [];
   const draftByCanonicalId = new Map(
     drafts
@@ -191,6 +185,56 @@ export function existingIdentityChoiceForId(choices = [], personId = "") {
   ) || null;
 }
 
+export function completeTargetOccurrenceSelection(
+  links = [],
+  candidateId = "",
+  targetPersonIds = [],
+  selectedOccurrenceIds = [],
+  preserveExistingTarget = false
+) {
+  const desired = new Set([...selectedOccurrenceIds].map(String));
+  if (!preserveExistingTarget) return desired;
+  const targetIds = new Set([...targetPersonIds].filter(Boolean).map(String));
+  for (const link of links || []) {
+    const linkCandidateId = String(link.candidateId || link.candidate_id || "");
+    const linkPersonId = String(link.personId || link.person_id || "");
+    if (
+      linkCandidateId !== String(candidateId || "")
+      || String(link.state || "confirmed") !== "confirmed"
+      || !targetIds.has(linkPersonId)
+    ) continue;
+    for (const occurrenceId of linkedOccurrenceIds(link)) desired.add(occurrenceId);
+  }
+  return desired;
+}
+
+export function completeTargetSourceSelection(
+  links = [],
+  candidate = {},
+  targetPersonIds = [],
+  selectedSourceRefs = [],
+  preserveExistingTarget = false,
+  state = getState()
+) {
+  const desired = new Set([...selectedSourceRefs].map(String));
+  if (!preserveExistingTarget) return desired;
+  const candidateId = String(candidate?.candidateId || candidate?.candidate_id || "");
+  const targetIds = new Set([...targetPersonIds].filter(Boolean).map(String));
+  for (const link of links || []) {
+    const linkCandidateId = String(link.candidateId || link.candidate_id || "");
+    const linkPersonId = String(link.personId || link.person_id || "");
+    if (
+      linkCandidateId !== candidateId
+      || String(link.state || "confirmed") !== "confirmed"
+      || !targetIds.has(linkPersonId)
+    ) continue;
+    for (const sourceRef of linkedSourceRefs(link, candidate, state)) {
+      desired.add(sourceRef);
+    }
+  }
+  return desired;
+}
+
 export function representativeOccurrences(occurrences = [], limit = 3) {
   const values = Array.isArray(occurrences) ? occurrences : [];
   const maximum = Math.max(0, Math.floor(Number(limit) || 0));
@@ -228,11 +272,19 @@ export function identityLinksForCandidate(candidate, state = getState()) {
   );
 }
 
+function sameIdentityPerson(leftPersonId, rightPersonId, state = getState()) {
+  const left = String(leftPersonId || "");
+  const right = String(rightPersonId || "");
+  if (!left || !right) return false;
+  const drafts = state.personDrafts || [];
+  return resolveIdentityPersonId(left, drafts) === resolveIdentityPersonId(right, drafts);
+}
+
 export function identityLinkForCandidate(candidate, state = getState(), personId = "") {
   const links = identityLinksForCandidate(candidate, state);
   if (!personId) return links[0] || null;
   return links.find((link) =>
-    (link.personId || link.person_id) === personId
+    sameIdentityPerson(link.personId || link.person_id, personId, state)
   ) || null;
 }
 
@@ -241,12 +293,41 @@ function linkedOccurrenceIds(link) {
   return new Set(Array.isArray(values) ? values.map(String) : []);
 }
 
+function linkedSourceRefs(link, candidate, state = getState()) {
+  const values = link?.sourceRefs || link?.source_refs;
+  if (Array.isArray(values) && values.length) {
+    return new Set(values.map(String));
+  }
+  // Source-only links created before source subsets were persisted applied to
+  // the whole candidate. Preserve that legacy meaning on reload.
+  if (!candidateOccurrences(candidate, state.identityPayload).length) {
+    return new Set((candidate?.sourceRefs || candidate?.source_refs || []).map(String));
+  }
+  return new Set();
+}
+
 function confirmedOccurrenceIds(candidate, state = getState(), exceptPersonId = "") {
   const selected = new Set();
   for (const link of identityLinksForCandidate(candidate, state)) {
     const personId = String(link.personId || link.person_id || "");
-    if (link.state !== "confirmed" || (exceptPersonId && personId === exceptPersonId)) continue;
+    if (
+      link.state !== "confirmed"
+      || (exceptPersonId && sameIdentityPerson(personId, exceptPersonId, state))
+    ) continue;
     for (const occurrenceId of linkedOccurrenceIds(link)) selected.add(occurrenceId);
+  }
+  return selected;
+}
+
+export function confirmedSourceRefs(candidate, state = getState(), exceptPersonId = "") {
+  const selected = new Set();
+  for (const link of identityLinksForCandidate(candidate, state)) {
+    const personId = String(link.personId || link.person_id || "");
+    if (
+      link.state !== "confirmed"
+      || (exceptPersonId && sameIdentityPerson(personId, exceptPersonId, state))
+    ) continue;
+    for (const sourceRef of linkedSourceRefs(link, candidate, state)) selected.add(sourceRef);
   }
   return selected;
 }
@@ -401,7 +482,11 @@ function occurrenceCrop(occurrence, name, size = "standard") {
 
 function filmstrip(candidate, identity, limit = 5, layout = "card") {
   const name = candidateName(candidate);
-  const occurrences = candidateOccurrences(candidate, identity).slice(0, limit);
+  return occurrenceFilmstrip(candidateOccurrences(candidate, identity), name, limit, layout);
+}
+
+function occurrenceFilmstrip(allOccurrences, name, limit = 5, layout = "card") {
+  const occurrences = (allOccurrences || []).slice(0, limit);
   if (!occurrences.length) {
     return el(
       "div",
@@ -814,7 +899,7 @@ export function manualIdentityDrafts(identity, state = getState()) {
       .map((link) => String(link.personId || link.person_id || ""))
       .filter(Boolean)
   );
-  return (state.personDrafts || []).filter((draft) =>
+  return activeIdentityDrafts(state.personDrafts || []).filter((draft) =>
     !visuallyLinkedIds.has(String(draft.draftId || draft.canonicalPersonId || ""))
     && (draft.sourceRefs || []).some((sourceRef) => manualSourceRefs.has(sourceRef))
   );
@@ -867,7 +952,19 @@ export function renderIdentityPeople(container) {
   }
   if (!identity) return false;
   const sources = sourcesForState(state);
-  const presentation = identityPresentationGroups(identity);
+  const reviewedPeople = logicalIdentityPeople(
+    identity,
+    state.identityLinks,
+    state.personDrafts,
+    projectPeople()
+  );
+  const proposedCandidates = (identity.candidates || []).filter((candidate) =>
+    !candidateIsResolved(candidate, identity, state)
+  );
+  const presentation = identityPresentationGroups({
+    ...identity,
+    candidates: proposedCandidates,
+  });
   const manualDrafts = manualIdentityDrafts(identity, state);
   const list = el(
     "div",
@@ -875,14 +972,17 @@ export function renderIdentityPeople(container) {
     el(
       "div",
       { class: "plb-people-intro" },
-      el("div", {}, metaLabel("Likely people", true), el("h2", { text: "Review people, not filenames" }), el("p", { text: "Portrait groups are suggestions from local project media. Confirm merges and splits before requesting rights." })),
+      el("div", {}, metaLabel("Project identities", true), el("h2", { text: "People and proposed groups" }), el("p", { text: "Confirmed appearances are grouped by person. Unresolved visual groups stay separate until you review them." })),
       el("span", { class: "plb-coverage-pill", text: coverageLabel(identity.coverage) })
     )
   );
+  if (reviewedPeople.length) {
+    list.append(reviewedPeopleSection(reviewedPeople, identity, state));
+  }
   if (presentation.recurring.length) {
     list.append(peopleTierSection(
-      "Recurring people",
-      "Appearance groups seen four or more times",
+      "Proposed recurring groups",
+      "Unresolved visual groups seen four or more times",
       presentation.recurring,
       0,
       identity,
@@ -892,8 +992,8 @@ export function renderIdentityPeople(container) {
   }
   if (presentation.supporting.length) {
     list.append(peopleTierSection(
-      "Supporting people",
-      "Appearance groups seen three times",
+      "Proposed supporting groups",
+      "Unresolved visual groups seen three times",
       presentation.supporting,
       presentation.recurring.length,
       identity,
@@ -919,11 +1019,113 @@ export function renderIdentityPeople(container) {
   if (presentation.oneOff.length) {
     list.append(oneOffSection(presentation, identity, sources, state));
   }
-  if (!identity.candidates.length) {
+  if (!identity.candidates.length && !reviewedPeople.length) {
     list.append(el("div", { class: "plb-empty" }, pluribusMark(20), el("div", { text: "No likely people were found in the analyzed media. Check Sources for coverage and exclusions." })));
   }
   container.replaceChildren(list);
   return true;
+}
+
+function personSyncLabel(person, state) {
+  const syncState = String(state.identitySyncState || "");
+  if (syncState === "reconnect_required") return "Reconnect required";
+  if (syncState === "sync_pending") return "Sync pending";
+  if (syncState === "synced") return "Synced";
+  if (syncState === "saved_local") return "Saved locally";
+  if (person.canonicalPersonId) return "Project person";
+  return "Saved locally";
+}
+
+function reviewedPeopleSection(people, identity, state) {
+  const retry = identitySyncAction(state);
+  return el(
+    "section",
+    { class: "plb-people-tier plb-reviewed-people" },
+    el(
+      "div",
+      { class: "plb-section-heading" },
+      el("div", {}, el("h3", { text: "Confirmed people" }), el("small", { class: "plb-tier-description", text: "One card per project identity, across every reviewed visual group" })),
+      el(
+        "div",
+        { class: "plb-person-sync-actions" },
+        el("span", { class: "plb-one-off-count", text: String(people.length) }),
+        retry
+      )
+    ),
+    el("div", { class: "plb-candidate-list" }, people.map((person) => reviewedPersonCard(person, identity, state)))
+  );
+}
+
+function identitySyncAction(state) {
+  const syncState = String(state.identitySyncState || "");
+  if (syncState === "reconnect_required") {
+    return button("Reconnect", "secondary", async () => {
+      const { openConnectDialog } = await import("./connect.js");
+      openConnectDialog(state.connection, async () => {
+        const result = await retryIdentityWorkspaceSync();
+        toast(result === "synced" ? "Local identity work is synced." : "Identity sync will keep retrying safely.");
+      });
+    });
+  }
+  if (syncState !== "sync_pending") return null;
+  const retry = button("Retry sync", "secondary", async () => {
+    retry.disabled = true;
+    const result = await retryIdentityWorkspaceSync();
+    retry.disabled = false;
+    toast(result === "synced" ? "Local identity work is synced." : "Identity sync is still pending.");
+  });
+  return retry;
+}
+
+function reviewedPersonCard(person, identity, state) {
+  const candidateById = new Map((identity.candidates || []).map((candidate) => [candidate.candidateId, candidate]));
+  const groups = person.candidateIds.map((candidateId) => candidateById.get(candidateId)).filter(Boolean);
+  const headingId = `plb-person-${person.personId.replace(/[^a-z0-9_-]/gi, "-")}`;
+  const groupActions = groups.map((candidate, index) => {
+    const count = (person.occurrences || []).filter((occurrence) =>
+      String(occurrence.candidateId || occurrence.candidate_id || "") === candidate.candidateId
+    ).length;
+    return el(
+      "div",
+      { class: "plb-person-group-row" },
+      el("span", { text: `Visual group ${index + 1} · ${count} ${count === 1 ? "appearance" : "appearances"}` }),
+      button(
+        "Review appearances",
+        "secondary",
+        () => openIdentityReviewDialog(candidate, person.draftId || person.personId)
+      )
+    );
+  });
+  return el(
+    "article",
+    { class: "plb-candidate-card confirmed plb-person-card", "aria-labelledby": headingId },
+    occurrenceFilmstrip(person.occurrences, person.displayName, 5),
+    el(
+      "div",
+      { class: "plb-candidate-body" },
+      el(
+        "div",
+        { class: "plb-candidate-heading" },
+        el("div", {}, el("h3", { id: headingId, text: person.displayName }), person.role ? el("p", { text: person.role }) : null),
+        el("span", { class: "plb-status-pill plb-status-pill--ok", text: personSyncLabel(person, state) })
+      ),
+      el(
+        "div",
+        { class: "plb-candidate-facts" },
+        el("span", { text: `${person.occurrenceIds.length} ${person.occurrenceIds.length === 1 ? "appearance" : "appearances"}` }),
+        el("span", { text: `${person.sourceRefs.length} ${person.sourceRefs.length === 1 ? "source" : "sources"}` }),
+        el("span", { text: `${person.candidateIds.length} ${person.candidateIds.length === 1 ? "visual group" : "visual groups"}` })
+      ),
+      groupActions.length
+        ? el(
+            "details",
+            { class: "plb-person-groups" },
+            el("summary", { text: `Review ${groupActions.length} visual ${groupActions.length === 1 ? "group" : "groups"}` }),
+            el("div", { class: "plb-person-group-list" }, groupActions)
+          )
+        : null
+    )
+  );
 }
 
 function oneOffSection(presentation, identity, sources, state) {
@@ -1134,15 +1336,22 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         explicitPersonId || existing?.canonicalPersonId || existing?.draftId || ""
       );
   let selectedSavedPerson = initialSavedPerson;
+  let assignmentAction = "assign";
   const allOccurrences = candidateOccurrences(candidate, identity);
   const lockedOccurrenceIds = confirmedOccurrenceIds(candidate, state, explicitPersonId);
+  const lockedSourceRefs = confirmedSourceRefs(candidate, state, explicitPersonId);
   const lockedOccurrenceOwners = new Map();
+  const lockedSourceOwners = new Map();
   for (const link of candidateLinks) {
     const personId = String(link.personId || link.person_id || "");
-    if (link.state !== "confirmed" || personId === explicitPersonId) continue;
+    if (
+      link.state !== "confirmed"
+      || sameIdentityPerson(personId, explicitPersonId, state)
+    ) continue;
     const personDraft = draftForCandidate(candidate, state, personId);
     const owner = personDraft?.displayName || link.displayName || link.display_name || "another person";
     for (const occurrenceId of linkedOccurrenceIds(link)) lockedOccurrenceOwners.set(occurrenceId, owner);
+    for (const sourceRef of linkedSourceRefs(link, candidate, state)) lockedSourceOwners.set(sourceRef, owner);
   }
   const groups = groupOccurrencesBySource(candidate, identity);
   const representedRefs = new Set(groups.map((group) => group.sourceRef).filter(Boolean));
@@ -1152,10 +1361,6 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       groups.push({ sourceRef, label: source ? sourceDisplayLabel(source) : "Source", occurrences: [] });
     }
   }
-  const candidateSourceRefs = [...new Set([
-    ...(candidate.sourceRefs || []),
-    ...groups.map((group) => group.sourceRef),
-  ].filter(Boolean).map(String))];
   const pendingNewDraftId = globalThis.crypto.randomUUID();
 
   let stage = 1;
@@ -1169,14 +1374,46 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       ? "false_positive"
       : "same";
   const storedOccurrenceValues = explicitLink?.occurrenceIds ?? explicitLink?.occurrence_ids;
+  const storedSourceRefValues = explicitLink?.sourceRefs ?? explicitLink?.source_refs;
   const initialPerson = initialSavedPerson || existing;
   const existingSourceRefs = new Set(initialPerson?.sourceRefs || []);
-  const occurrenceIds = Array.isArray(storedOccurrenceValues)
-    ? new Set(storedOccurrenceValues.map(String).filter((value) => !lockedOccurrenceIds.has(value)))
-    : new Set(allOccurrences.filter((occurrence) =>
+  const defaultPersonOccurrenceIds = new Set(allOccurrences.filter((occurrence) =>
         !lockedOccurrenceIds.has(String(occurrence.occurrenceId))
           && (existingSourceRefs.size ? existingSourceRefs.has(occurrence.sourceRef) : !occurrence.ambiguous)
       ).map((occurrence) => String(occurrence.occurrenceId)));
+  const defaultFalsePositiveOccurrenceIds = new Set(allOccurrences
+    .filter((occurrence) => !lockedOccurrenceIds.has(String(occurrence.occurrenceId)))
+    .map((occurrence) => String(occurrence.occurrenceId)));
+  const storedOccurrenceIds = Array.isArray(storedOccurrenceValues)
+    ? new Set(storedOccurrenceValues.map(String).filter((value) => !lockedOccurrenceIds.has(value)))
+    : null;
+  const storedSourceRefs = Array.isArray(storedSourceRefValues)
+    ? new Set(storedSourceRefValues.map(String).filter((value) => !lockedSourceRefs.has(value)))
+    : null;
+  const occurrenceIds = storedOccurrenceIds
+    || (decision === "false_positive"
+      ? defaultFalsePositiveOccurrenceIds
+      : defaultPersonOccurrenceIds);
+  let occurrenceSelectionSnapshots = new Map([
+    [identitySelectionBucket(decision), new Set(occurrenceIds)],
+  ]);
+  const sourceOnlyRefs = new Set(groups
+    .filter((group) => !group.occurrences.length && group.sourceRef)
+    .map((group) => String(group.sourceRef)));
+  const defaultPersonSourceRefs = new Set(groups.filter((group) =>
+    !group.occurrences.length
+    && group.sourceRef
+    && !lockedSourceRefs.has(String(group.sourceRef))
+    && (storedSourceRefs
+      ? storedSourceRefs.has(String(group.sourceRef))
+      : (!existing || existingSourceRefs.has(group.sourceRef)))
+  ).map((group) => String(group.sourceRef)));
+  const defaultFalsePositiveSourceRefs = new Set(
+    [...sourceOnlyRefs].filter((sourceRef) => !lockedSourceRefs.has(sourceRef))
+  );
+  let sourceSelectionSnapshots = new Map([
+    [identitySelectionBucket(decision), new Set(defaultPersonSourceRefs)],
+  ]);
   const form = {
     name: initialPerson?.displayName || (newPerson ? "" : candidate.suggestedName) || "",
     role: initialPerson?.role || (newPerson ? "" : candidate.suggestedRole) || "",
@@ -1186,9 +1423,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     repEmail: initialPerson?.representative?.email || "",
     notes: initialPerson?.notes || "",
     occurrenceIds,
-    sourceRefs: new Set(groups.filter((group) =>
-      group.occurrences.length === 0 && (!existing || existingSourceRefs.has(group.sourceRef))
-    ).map((group) => group.sourceRef).filter(Boolean)),
+    sourceRefs: new Set(defaultPersonSourceRefs),
   };
   const initialPersonFields = {
     name: form.name,
@@ -1353,6 +1588,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         "aria-label": "Use an existing project person",
         onchange: (event) => {
           selectedSavedPerson = savedPeople.find((person) => person.choiceId === event.target.value) || null;
+          assignmentAction = "assign";
           if (selectedSavedPerson) fillPersonFields(selectedSavedPerson);
           else if (decision === "different") resetPersonFieldsForDifferentPerson();
           else restoreInitialPersonFields();
@@ -1367,7 +1603,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       }),
       savedPeople.map((person) => el("option", {
         value: person.choiceId,
-        text: `${person.displayName}${person.role ? ` · ${person.role}` : ""}`,
+        text: `${person.scope === "project" ? "Project person" : "Local draft"} · ${person.displayName}${person.role ? ` · ${person.role}` : ""} · ${person.sourceRefs.length} ${person.sourceRefs.length === 1 ? "source" : "sources"}`,
       }))
     );
     savedPersonPicker.value = selectedSavedPerson?.choiceId || "";
@@ -1427,7 +1663,31 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
               { class: "plb-provenance-note plb-existing-person-note" },
               metaLabel("Existing identity selected"),
               el("strong", { text: selectedSavedPerson.displayName }),
-              el("span", { text: "Saving will assign only the appearances you select to this saved person. It will not create a duplicate identity." })
+              el("span", {
+                text: assignmentAction === "combine"
+                  ? "Saving will combine the current local identity into this survivor and preserve an audit tombstone."
+                  : "Saving will assign only the appearances you select to this saved person. It will not create a duplicate identity.",
+              })
+            )
+          : null,
+        decision !== "false_positive"
+          && selectedSavedPerson
+          && existing?.draftId
+          && existing.draftId !== selectedSavedPerson.draftId
+          ? el(
+              "fieldset",
+              { class: "plb-decision-set plb-combine-choice" },
+              el("legend", { text: "How should this match be applied?" }),
+              assignmentActionOption(
+                "assign",
+                "Assign selected appearances",
+                "Move only the checked appearances; keep the current local identity if it still owns other work."
+              ),
+              assignmentActionOption(
+                "combine",
+                "Combine identities",
+                "Rewrite this project's links to the selected survivor and retain the old draft as an audit tombstone."
+              )
             )
           : null,
         decision === "false_positive" ? null : formField("Name", nameInput, usesProjectSuggestion && candidate.suggestedName ? provenance.badge : "Add a working name; contact details can wait"),
@@ -1441,22 +1701,59 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     );
   }
 
+  function assignmentActionOption(value, label, help) {
+    const radio = el("input", { type: "radio", name: "identity-assignment-action", value });
+    radio.checked = assignmentAction === value;
+    radio.addEventListener("change", () => {
+      assignmentAction = value;
+      renderDialog();
+    });
+    return el(
+      "label",
+      { class: `plb-decision-option${assignmentAction === value ? " active" : ""}` },
+      radio,
+      el("span", {}, el("strong", { text: label }), el("small", { text: help }))
+    );
+  }
+
   function decisionOption(value, label, help) {
     const radio = el("input", { type: "radio", name: "identity-decision", value });
     radio.checked = decision === value;
     radio.addEventListener("change", () => {
       const previousDecision = decision;
+      const previousBucket = identitySelectionBucket(previousDecision);
+      const nextBucket = identitySelectionBucket(value);
+      if (previousBucket !== nextBucket) {
+        const transitioned = transitionIdentityOccurrenceSelection(
+          occurrenceSelectionSnapshots,
+          previousDecision,
+          value,
+          form.occurrenceIds,
+          value === "false_positive"
+            ? defaultFalsePositiveOccurrenceIds
+            : defaultPersonOccurrenceIds
+        );
+        occurrenceSelectionSnapshots = transitioned.snapshots;
+        form.occurrenceIds = transitioned.selection;
+        const sourceTransitioned = transitionIdentityOccurrenceSelection(
+          sourceSelectionSnapshots,
+          previousDecision,
+          value,
+          new Set([...form.sourceRefs].filter((sourceRef) => sourceOnlyRefs.has(sourceRef))),
+          value === "false_positive"
+            ? defaultFalsePositiveSourceRefs
+            : defaultPersonSourceRefs
+        );
+        sourceSelectionSnapshots = sourceTransitioned.snapshots;
+        for (const sourceRef of sourceOnlyRefs) form.sourceRefs.delete(sourceRef);
+        for (const sourceRef of sourceTransitioned.selection) form.sourceRefs.add(sourceRef);
+        syncSourceRefsFromOccurrences();
+      }
       decision = value;
       if (value === "different" && previousDecision !== "different") {
         resetPersonFieldsForDifferentPerson();
       } else if (previousDecision === "different" && value !== "different") {
         restoreInitialPersonFields();
-      }
-      if (value === "false_positive" && !explicitPersonId && !editingFalsePositive) {
-        form.occurrenceIds = new Set(allOccurrences
-          .filter((occurrence) => !lockedOccurrenceIds.has(String(occurrence.occurrenceId)))
-          .map((occurrence) => String(occurrence.occurrenceId)));
-        syncSourceRefsFromOccurrences();
       }
       renderDialog();
     });
@@ -1542,6 +1839,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     const sourceLabel = group.label || `source ${index + 1}`;
     const allGroupOccurrenceIds = group.occurrences.map((occurrence) => String(occurrence.occurrenceId));
     const occurrenceIds = allGroupOccurrenceIds.filter((occurrenceId) => !lockedOccurrenceIds.has(occurrenceId));
+    const lockedSourceOwner = group.occurrences.length ? "" : lockedSourceOwners.get(String(sourceRef || ""));
     const checkbox = el("input", {
       type: "checkbox",
       "aria-label": group.occurrences.length
@@ -1622,7 +1920,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     });
     const section = el(
       "section",
-      { class: "plb-appearance-group" },
+      { class: `plb-appearance-group${lockedSourceOwner ? " locked" : ""}` },
       el(
         "label",
         { class: "plb-appearance-group-header" },
@@ -1642,12 +1940,16 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         ? occurrenceIds.length > 0 && selectedCount === occurrenceIds.length
         : selected;
       checkbox.indeterminate = group.occurrences.length && selectedCount > 0 && selectedCount < occurrenceIds.length;
-      checkbox.disabled = group.occurrences.length > 0 && occurrenceIds.length === 0;
+      checkbox.disabled = group.occurrences.length
+        ? occurrenceIds.length === 0
+        : Boolean(lockedSourceOwner);
       section.classList.toggle("selected", selected);
       section.classList.toggle("partial", checkbox.indeterminate);
       count.textContent = group.occurrences.length
         ? `${selectedCount} of ${occurrenceIds.length} available ${decision === "false_positive" ? "dismissed" : "selected"}${allGroupOccurrenceIds.length > occurrenceIds.length ? ` · ${allGroupOccurrenceIds.length - occurrenceIds.length} assigned` : ""}`
-        : selected ? "Source included" : "Source unresolved";
+        : lockedSourceOwner
+          ? `Assigned to ${lockedSourceOwner}`
+          : selected ? "Source included" : "Source unresolved";
       for (const item of representativeItems) {
         if (item.lockedOwner) {
           item.item.classList.remove("selected", "unresolved");
@@ -1680,6 +1982,7 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
     }
 
     checkbox.addEventListener("change", () => {
+      if (lockedSourceOwner) return;
       if (group.occurrences.length) {
         for (const occurrenceId of occurrenceIds) {
           if (checkbox.checked) form.occurrenceIds.add(occurrenceId);
@@ -1720,7 +2023,14 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       el(
         "div",
         { class: "plb-contact-summary" },
-        filmstrip(candidate, identity, 4, "review"),
+        occurrenceFilmstrip(
+          allOccurrences.filter((occurrence) =>
+            form.occurrenceIds.has(String(occurrence.occurrenceId))
+          ),
+          form.name || name,
+          4,
+          "review"
+        ),
         metaLabel("Identity ready", true),
         el("h2", { text: form.name || name }),
         form.role ? el("p", { text: form.role }) : null,
@@ -1783,6 +2093,10 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       toast("Run identity analysis again before leaving this group for review.");
       return;
     }
+    if (!allOccurrences.length && !form.sourceRefs.size) {
+      toast("Select at least one source to leave for review.");
+      return;
+    }
     unresolvedDecisionSaving = true;
     try {
       const snapshot = await freshLinkSnapshot();
@@ -1790,18 +2104,14 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         unresolvedDecisionSaving = false;
         return;
       }
-      const priorPersonId = explicitPersonId || existing?.draftId || "";
-      const remaining = identityLinksWithUnresolvedDecision(
-        snapshot.links,
-        candidate.candidateId,
-        [...form.occurrenceIds],
-        {
-          priorPersonId,
-          displayName: existing?.displayName || form.name || "",
-          candidateOccurrenceIds: allOccurrences.map((occurrence) => String(occurrence.occurrenceId)),
-        }
-      );
-      await commitIdentityLinks(openedJobId, remaining, snapshot.revision);
+      await commitIdentityDecision(openedJobId, {
+        baseRevision: snapshot.revision,
+        candidateId: candidate.candidateId,
+        decision: "unsure",
+        occurrenceIds: [...form.occurrenceIds],
+        ...(!allOccurrences.length ? { sourceRefs: [...form.sourceRefs] } : {}),
+        action: "assign",
+      });
       close();
       toast("Identity left unresolved for producer review.");
     } catch (error) {
@@ -1820,6 +2130,10 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       toast("Select at least one detector mistake to dismiss.");
       return;
     }
+    if (!allOccurrences.length && !form.sourceRefs.size) {
+      toast("Select at least one source-level detection to dismiss.");
+      return;
+    }
     falsePositiveSaving = true;
     try {
       const snapshot = await freshLinkSnapshot();
@@ -1827,14 +2141,14 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         falsePositiveSaving = false;
         return;
       }
-      const priorPersonId = explicitPersonId || existing?.draftId || "";
-      const links = identityLinksWithFalsePositiveDecision(
-        snapshot.links,
-        candidate.candidateId,
-        [...form.occurrenceIds],
-        { priorPersonId, replaceExistingDismissal: editingFalsePositive }
-      );
-      await commitIdentityLinks(openedJobId, links, snapshot.revision);
+      await commitIdentityDecision(openedJobId, {
+        baseRevision: snapshot.revision,
+        candidateId: candidate.candidateId,
+        decision: "false_positive",
+        occurrenceIds: [...form.occurrenceIds],
+        ...(!allOccurrences.length ? { sourceRefs: [...form.sourceRefs] } : {}),
+        action: "assign",
+      });
       close();
       toast("Selected detector mistakes dismissed for this analysis. The source itself was not marked person-free.");
     } catch (error) {
@@ -1850,17 +2164,18 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
       try {
         const snapshot = await freshLinkSnapshot();
         if (!snapshot) return;
-        const remaining = snapshot.links.filter((link) =>
-          (link.candidateId || link.candidate_id) !== candidate.candidateId
-            || (link.personId || link.person_id) !== explicitPersonId
-        );
-        remaining.push({
+        const selectedIds = linkedOccurrenceIds(explicitLink);
+        const occurrenceIds = selectedIds.size
+          ? [...selectedIds]
+          : allOccurrences.map((occurrence) => String(occurrence.occurrenceId));
+        await commitIdentityDecision(openedJobId, {
+          baseRevision: snapshot.revision,
           candidateId: candidate.candidateId,
-          personId: explicitPersonId,
-          displayName: existing?.displayName || form.name || "",
-          state: "rejected",
+          decision: "unsure",
+          occurrenceIds,
+          ...(!allOccurrences.length ? { sourceRefs: [...form.sourceRefs] } : {}),
+          action: "assign",
         });
-        await commitIdentityLinks(openedJobId, remaining, snapshot.revision);
         close();
         toast("Visual assignment removed. The person draft was kept.");
       } catch (error) {
@@ -1921,7 +2236,9 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
         if (
           confirmingSavedPerson
           && !globalThis.confirm(
-            `Assign the selected appearances to ${selectedSavedPerson.displayName}? This will use the existing identity instead of creating a duplicate.`
+            assignmentAction === "combine"
+              ? `Combine the current local identity into ${selectedSavedPerson.displayName}? The old draft will remain in local audit history.`
+              : `Assign the selected appearances to ${selectedSavedPerson.displayName}? The current identity will be kept if it still owns other work.`
           )
         ) return;
         if (!(await ensureReviewContextCurrent())) return;
@@ -1930,105 +2247,59 @@ export function openIdentityReviewDialog(candidate, initialDraftId = "", options
           const representative = form.repName.trim() || form.repEmail.trim()
             ? { role: form.repRole, name: form.repName.trim() || undefined, email: form.repEmail.trim() || undefined }
             : undefined;
-          const sourceRefs = mergeIdentityDraftSourceRefs(
-            targetDraft?.sourceRefs || [],
-            candidateSourceRefs,
-            [...form.sourceRefs],
-            Boolean(targetDraft)
-          );
-          const currentState = getState();
-          const hostedPersonId = canonicalPersonId && projectPeople().some((person) =>
-            String(person?.id || person?.talentRecordId || person?.talent_record_id || "")
-              === String(canonicalPersonId)
-          ) ? String(canonicalPersonId) : "";
-          const hostedProjectId = hostedPersonId
-            && currentState.activeProjectId
-            && currentState.workflowBinding?.projectId === currentState.activeProjectId
-            ? currentState.activeProjectId
-            : "";
-          if (hostedProjectId) {
-            await updateProjectPerson(hostedProjectId, hostedPersonId, {
-              displayName: form.name.trim(),
-              role: form.role.trim() || undefined,
-              representative,
-            });
-          }
-          await saveLocalPersonDraft(workflowRef, {
-            draftId,
-            displayName: form.name.trim(),
-            role: form.role.trim() || undefined,
-            talentEmail: form.talentEmail.trim() || undefined,
-            representative,
-            notes: form.notes.trim() || undefined,
-            sourceRefs,
-            canonicalPersonId: canonicalPersonId || undefined,
-          });
-          await loadPersonDrafts(workflowRef, openedScanEpoch);
-          if (!reviewContextIsCurrent()) {
-            close();
-            toast("The workflow changed. The person draft was saved, but no visual link was changed.");
+          const snapshot = await freshLinkSnapshot();
+          if (!snapshot) {
+            save.disabled = false;
             return;
           }
-          const jobId = openedJobId;
-          if (jobId) {
-            try {
-              const snapshot = await freshLinkSnapshot();
-              if (!snapshot) {
-                save.disabled = false;
-                return;
-              }
-              const priorPersonId = explicitPersonId || existing?.canonicalPersonId || existing?.draftId || "";
-              const links = identityLinksWithConfirmedDecision(
-                snapshot.links,
-                candidate.candidateId,
-                {
-                  personId: targetPersonId,
-                  displayName: form.name.trim(),
-                  occurrenceIds: [...form.occurrenceIds],
-                  priorPersonId,
-                  preservePriorUnselected: replacingExistingPerson,
-                  preserveTargetExisting: confirmingSavedPerson,
-                  targetPersonIds: [...targetPersonIds],
-                  candidateOccurrenceIds: allOccurrences.map((occurrence) => String(occurrence.occurrenceId)),
-                }
-              );
-              await commitIdentityLinks(jobId, links, snapshot.revision);
-            } catch (error) {
-              close();
-              toast(
-                identityRevisionConflict(error)
-                  ? "Person saved, but visual review changed in another window. Reopen this person to confirm the appearances."
-                  : "Person saved, but the visual cluster link needs to be confirmed again."
-              );
-              return;
-            }
-          }
-          if (hostedProjectId) {
-            try {
-              const { syncCurrentRightsManifest } = await import("./sync-manifest.js");
-              await syncCurrentRightsManifest(
-                sourceLinkOverridesForExistingPerson(
-                  candidateSourceRefs,
-                  [...form.sourceRefs],
-                  hostedPersonId
-                )
-              );
-            } catch {
-              close();
-              toast("Person and appearances saved. The project source link is pending; reopen the person to retry.");
-              return;
-            }
-          }
-          close();
-          toast(
-            confirmingSavedPerson
-              ? `Appearances assigned to ${selectedSavedPerson.displayName}. No duplicate person was created.`
-              : replacingExistingPerson
-              ? "Different person confirmed. The original person record was kept."
-              : existing
-                ? "Person updated."
-                : "Person confirmed. Rights status is still pending."
+          const desiredOccurrenceIds = completeTargetOccurrenceSelection(
+            snapshot.links,
+            candidate.candidateId,
+            targetPersonIds,
+            form.occurrenceIds,
+            !retainsInitialIdentity
           );
+          const desiredSourceRefs = completeTargetSourceSelection(
+            snapshot.links,
+            candidate,
+            targetPersonIds,
+            form.sourceRefs,
+            !retainsInitialIdentity,
+            getState()
+          );
+          const result = await commitIdentityDecision(openedJobId, {
+            baseRevision: snapshot.revision,
+            candidateId: candidate.candidateId,
+            decision: "confirmed",
+            occurrenceIds: [...desiredOccurrenceIds],
+            ...(!allOccurrences.length ? { sourceRefs: [...desiredSourceRefs] } : {}),
+            action: assignmentAction,
+            target: {
+              draftId,
+              canonicalPersonId: canonicalPersonId || undefined,
+              displayName: form.name.trim(),
+              role: form.role.trim() || undefined,
+              talentEmail: form.talentEmail.trim() || undefined,
+              representative,
+              notes: form.notes.trim() || undefined,
+            },
+            mergeDraftIds: assignmentAction === "combine" && existing?.draftId
+              ? [existing.draftId]
+              : [],
+          });
+          close();
+          const syncState = String(result?.syncState || "saved_local");
+          if (syncState === "synced") {
+            toast(`${form.name.trim()} and the selected appearances were saved to the project.`);
+          } else if (syncState === "reconnect_required") {
+            toast(`${form.name.trim()} was saved locally. Reconnect Pluribus to finish project sync.`);
+          } else if (syncState === "sync_pending") {
+            toast(`${form.name.trim()} was saved locally. Workspace sync is pending and will retry safely.`);
+          } else if (assignmentAction === "combine") {
+            toast(`Identities combined as ${form.name.trim()}. The prior draft remains in local audit history.`);
+          } else {
+            toast(`${form.name.trim()} and the selected appearances were saved locally.`);
+          }
         } catch (error) {
           toast(error.message || "Could not save this person.");
           save.disabled = false;

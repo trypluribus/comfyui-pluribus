@@ -130,6 +130,7 @@ class PersonLink:
     state: str = "confirmed"
     display_name: str = ""
     occurrence_ids: tuple[str, ...] = ()
+    source_refs: tuple[str, ...] = ()
 
     def public_dict(self) -> dict[str, Any]:
         result: dict[str, Any] = {
@@ -140,6 +141,8 @@ class PersonLink:
         }
         if self.occurrence_ids:
             result["occurrenceIds"] = list(self.occurrence_ids)
+        if self.source_refs:
+            result["sourceRefs"] = list(self.source_refs)
         return result
 
 
