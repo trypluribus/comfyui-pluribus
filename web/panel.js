@@ -57,6 +57,7 @@ import {
   loadProductContext,
   openProjectDialog,
   openWorkspaceSetupDialog,
+  refreshProjectsWhenConnected,
   selectProject,
 } from "./project.js";
 import { internalStateForPerson, requestStateForPerson } from "./request-confirmation.js";
@@ -83,6 +84,7 @@ let mountedContainer = null;
 let unsubscribePanel = null;
 let activeTab = "overview";
 let contextRequested = false;
+let projectTitlesRefreshedForConnection = false;
 let scanRequestId = 0;
 let scanBarrier = Promise.resolve();
 
@@ -91,7 +93,10 @@ export function mountPanel(container) {
   // the same live container. Reuse that mount so we do not duplicate controls
   // or store subscriptions. If the host discarded the previous DOM (or hands
   // us a replacement container), tear down our listener before remounting.
-  if (mountedContainer === container && root && container.contains(root)) return root;
+  if (mountedContainer === container && root && container.contains(root)) {
+    refreshProjectTitlesOnMount();
+    return root;
+  }
 
   unmountPanel();
   root = el("div", { class: "plb-root" });
@@ -106,10 +111,27 @@ export function mountPanel(container) {
     maybeLoadConnectedContext(state);
   });
   render(getState());
+  refreshProjectTitlesOnMount();
   if (!getState().scan && !getState().scanning) void scan();
   void refreshIdentityCapabilities();
   void refreshConnection();
   return root;
+}
+
+function refreshProjectTitlesOnMount() {
+  const state = getState();
+  if (
+    state.connection?.state !== "connected" ||
+    !state.workspaceReady ||
+    !state.workspace ||
+    state.projectLoading
+  ) return;
+  projectTitlesRefreshedForConnection = true;
+  void refreshProjectsWhenConnected(state)
+    .catch((error) => {
+      projectTitlesRefreshedForConnection = false;
+      console.warn("[Pluribus] could not refresh project names", error);
+    });
 }
 
 export function unmountPanel() {
@@ -123,12 +145,34 @@ export function unmountPanel() {
 function maybeLoadConnectedContext(state) {
   if (state.connection?.state !== "connected") {
     contextRequested = false;
+    projectTitlesRefreshedForConnection = false;
+    return;
+  }
+  if (
+    state.workspaceReady &&
+    state.workspace &&
+    !state.projectLoading &&
+    !contextRequested &&
+    !projectTitlesRefreshedForConnection
+  ) {
+    contextRequested = true;
+    void refreshProjectsWhenConnected(state)
+      .then((projects) => {
+        if (projects) projectTitlesRefreshedForConnection = true;
+      })
+      .catch((error) => {
+        console.warn("[Pluribus] could not refresh project names after reconnect", error);
+      })
+      .finally(() => {
+        contextRequested = false;
+      });
     return;
   }
   if (state.workspaceReady || state.projectLoading || contextRequested) return;
   contextRequested = true;
   void loadProductContext()
     .then(async () => {
+      projectTitlesRefreshedForConnection = true;
       // Reconnect can promote durable person operations before the active
       // project/workflow context is restored. Retry once hydration finishes so
       // the complete source manifest is projected and can acknowledge those

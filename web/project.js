@@ -2,11 +2,13 @@ import {
   bindLocalWorkflow,
   createProject,
   getPluginWorkspace,
+  getLocalPersonDrafts,
   getProject,
   listProjects,
   setupPluginWorkspace,
 } from "./api.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
+import { projectRefreshPatch, projectRefreshReady } from "./project-contract.js";
 import { getState, setState } from "./store.js";
 import { syncCurrentRightsManifest } from "./sync-manifest.js";
 
@@ -72,14 +74,54 @@ export async function loadProjectContext(projectId = getState().activeProjectId)
   }
 }
 
+export async function refreshProjects() {
+  const projectsPayload = await listProjects();
+  const projects = projectsPayload.projects || [];
+  const current = getState();
+  setState(projectRefreshPatch(current, projects));
+  return projects;
+}
+
+export async function refreshProjectsWhenConnected(state = getState()) {
+  if (!projectRefreshReady(state)) return null;
+  return refreshProjects();
+}
+
 export async function selectProject(projectId, workflowKind = "production") {
   const binding = getState().workflowBinding;
+  const previousProjectId = String(binding?.projectId || "");
+  const projectChanged = Boolean(
+    previousProjectId && previousProjectId !== String(projectId || "")
+  );
   if (binding?.workflowRef) {
     setState({ manifestSynced: false });
     const updated = await bindLocalWorkflow(binding.workflowRef, projectId, workflowKind);
-    setState({ workflowBinding: updated });
+    if (projectChanged) {
+      // Project-person ids are project scoped. Refresh the private drafts
+      // after the binding transaction archives old hosted aliases and before
+      // any source-manifest projection can observe stale in-memory A ids.
+      const draftPayload = await getLocalPersonDrafts(binding.workflowRef);
+      setState({
+        workflowBinding: updated,
+        personDrafts: Array.isArray(draftPayload?.drafts) ? draftPayload.drafts : [],
+        identitySyncState: "saved_local",
+        identitySyncIssue: {
+          code: "identity_requires_review",
+          message: "Project people are scoped to one project. Review confirmed identities before syncing this project.",
+        },
+      });
+    } else {
+      setState({ workflowBinding: updated });
+    }
   }
   const context = await loadProjectContext(projectId);
+  if (projectChanged) {
+    // A project switch deliberately stops before manifest sync. The prior
+    // project's raw hosted ids remain local audit evidence until the producer
+    // explicitly re-reviews them; only that decision can trigger B promotion
+    // and a B-scoped full-manifest replacement.
+    return context;
+  }
   if (getState().scan && getState().workflowBinding?.workflowRef) {
     await syncCurrentRightsManifest();
     return getState().projectContext;

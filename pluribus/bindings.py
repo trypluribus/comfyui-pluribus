@@ -158,12 +158,40 @@ def _normalize_workspace_alias(
     }
 
 
+def _normalize_workspace_alias_history(
+    value: object,
+    *,
+    draft_id: object,
+) -> dict[str, dict[str, str]]:
+    """Validate private project-scoped receipts without exposing them publicly."""
+
+    if value in (None, ""):
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError("workspaceAliases must be an object.")
+    safe_draft_id = _require_uuid(draft_id, "draftId")
+    result: dict[str, dict[str, str]] = {}
+    for project_id, marker in value.items():
+        safe_project_id = _require_identifier(
+            project_id, "workspaceAliases projectId"
+        )
+        if not isinstance(marker, dict):
+            raise ValueError("Each workspaceAliases receipt must be an object.")
+        result[safe_project_id] = _normalize_workspace_alias(
+            marker,
+            draft_id=safe_draft_id,
+            canonical_person_id=marker.get("canonicalPersonId"),
+        )
+    return dict(sorted(result.items()))
+
+
 def _normalize_person_draft(
     body: object,
     known_source_refs: set[str],
     *,
     allow_empty_source_refs: bool = False,
     allow_workspace_alias: bool = False,
+    allow_workspace_alias_history: bool = False,
     allow_manual_source_refs: bool = False,
 ) -> dict[str, Any]:
     """Allow-list one local person draft without accepting graph metadata."""
@@ -242,6 +270,14 @@ def _normalize_person_draft(
             body.get("workspaceAlias"),
             draft_id=result.get("draftId"),
             canonical_person_id=result.get("canonicalPersonId"),
+        )
+    if allow_workspace_alias_history and body.get("workspaceAliases") not in (
+        None,
+        "",
+    ):
+        result["workspaceAliases"] = _normalize_workspace_alias_history(
+            body.get("workspaceAliases"),
+            draft_id=result.get("draftId"),
         )
     return result
 
@@ -451,6 +487,139 @@ class BindingStore:
         write_private_json(self.path, value)
 
     @staticmethod
+    def _scope_workspace_aliases_for_project_change(
+        binding: dict[str, Any],
+        previous_project: str,
+        next_project: str | None,
+    ) -> None:
+        """Archive/activate hosted receipts without crossing project scope."""
+
+        records: list[tuple[str, str, dict[str, Any]]] = []
+        for field in ("person_drafts", "person_draft_tombstones"):
+            values = binding.get(field)
+            if isinstance(values, dict):
+                records.extend(
+                    (field, str(record_id), value)
+                    for record_id, value in values.items()
+                    if isinstance(value, dict)
+                )
+
+        canonical_aliases = binding.get("workspace_canonical_aliases")
+        if not isinstance(canonical_aliases, dict):
+            canonical_aliases = {}
+            binding["workspace_canonical_aliases"] = canonical_aliases
+        previous_aliases = canonical_aliases.get(previous_project)
+        if not isinstance(previous_aliases, dict):
+            previous_aliases = {}
+            if previous_project:
+                canonical_aliases[previous_project] = previous_aliases
+
+        for field, record_id, record in records:
+            marker = record.get("workspaceAlias")
+            aliases = _normalize_workspace_alias_history(
+                record.get("workspaceAliases"),
+                draft_id=record_id,
+            )
+            record["workspaceAliases"] = aliases
+            if previous_project and isinstance(marker, dict):
+                aliases[previous_project] = deepcopy(marker)
+                marker_canonical = str(marker.get("canonicalPersonId") or "")
+                if marker_canonical:
+                    try:
+                        local_survivor = BindingStore._resolve_person_alias_in_binding(
+                            binding, record_id
+                        )
+                    except ValueError:
+                        local_survivor = ""
+                    prior_local = previous_aliases.get(marker_canonical)
+                    if local_survivor and prior_local in (None, local_survivor):
+                        previous_aliases[marker_canonical] = local_survivor
+                    else:
+                        # Two unrelated local identities claiming one hosted id
+                        # cannot be guessed across a project boundary.
+                        previous_aliases[marker_canonical] = None
+                record.pop("workspaceAlias", None)
+                if str(record.get("canonicalPersonId") or "") == marker_canonical:
+                    record.pop("canonicalPersonId", None)
+                if str(record.get("resolvedPersonId") or "") == marker_canonical:
+                    record.pop("resolvedPersonId", None)
+            next_marker = aliases.get(next_project) if next_project else None
+            if isinstance(next_marker, dict):
+                record["workspaceAlias"] = deepcopy(next_marker)
+                canonical_person_id = str(
+                    next_marker.get("canonicalPersonId") or ""
+                )
+                if field == "person_draft_tombstones":
+                    record["resolvedPersonId"] = canonical_person_id
+                    record.pop("canonicalPersonId", None)
+                else:
+                    record["canonicalPersonId"] = canonical_person_id
+        if previous_project and previous_project != str(next_project or ""):
+            binding["project_scope_revision"] = int(
+                binding.get("project_scope_revision") or 0
+            ) + 1
+
+    @classmethod
+    def _resolve_project_scoped_person_in_binding(
+        cls,
+        binding: dict[str, Any],
+        person_id: object,
+    ) -> str:
+        """Resolve a hosted id without ever carrying it into another project."""
+
+        raw_person_id = str(person_id or "")
+        if not raw_person_id:
+            return ""
+        local_ids = set(cls._person_drafts(binding)) | set(
+            cls._person_draft_tombstones(binding)
+        )
+        if raw_person_id in local_ids:
+            return cls._resolve_person_alias_in_binding(binding, raw_person_id)
+
+        current_canonicals = {
+            str(record.get("canonicalPersonId") or "")
+            for values in (
+                cls._person_drafts(binding),
+                cls._person_draft_tombstones(binding),
+            )
+            for record in values.values()
+            if isinstance(record, dict)
+            and record.get("canonicalPersonId")
+        }
+        if raw_person_id in current_canonicals:
+            return raw_person_id
+
+        current_project = str(binding.get("project_id") or "")
+        canonical_aliases = binding.get("workspace_canonical_aliases")
+        if isinstance(canonical_aliases, dict):
+            matches = {
+                str(project_aliases.get(raw_person_id) or "")
+                for project_id, project_aliases in canonical_aliases.items()
+                if str(project_id) != current_project
+                and isinstance(project_aliases, dict)
+                and raw_person_id in project_aliases
+            }
+            matches.discard("")
+            if len(matches) == 1:
+                return cls._resolve_person_alias_in_binding(binding, matches.pop())
+            if raw_person_id in {
+                canonical
+                for project_id, project_aliases in canonical_aliases.items()
+                if str(project_id) != current_project
+                and isinstance(project_aliases, dict)
+                for canonical in project_aliases
+            }:
+                raise BindingConflictError(
+                    "identity_requires_review: a prior project person maps to multiple local identities. Review this person explicitly in the current project."
+                )
+
+        if int(binding.get("project_scope_revision") or 0) > 0:
+            raise BindingConflictError(
+                "identity_requires_review: this confirmed person belongs to a prior or unverifiable project scope. Review the identity explicitly before syncing the current project."
+            )
+        return raw_person_id
+
+    @staticmethod
     def _public(binding: dict[str, Any]) -> dict[str, Any]:
         result = {
             "workflowRef": binding["workflow_ref"],
@@ -514,8 +683,43 @@ class BindingStore:
         with self._lock:
             data = self._read()
             binding = self._find(data, str(workflow_ref or ""))
+            previous_project = str(binding.get("project_id") or "")
+            if previous_project and previous_project != project:
+                retirement_projects = binding.setdefault(
+                    "portrait_retirement_project_ids", []
+                )
+                if previous_project not in retirement_projects:
+                    retirement_projects.append(previous_project)
+                    retirement_projects.sort()
+            if previous_project != project:
+                self._scope_workspace_aliases_for_project_change(
+                    binding, previous_project, project
+                )
             binding["project_id"] = project
             binding["workflow_kind"] = kind
+            self._write(data)
+            return self._public(binding)
+
+    def disassociate(self, workflow_ref: object) -> dict[str, Any]:
+        """Explicitly unbind a workflow while retaining portrait cleanup intent."""
+
+        with self._lock:
+            data = self._read()
+            binding = self._find(data, str(workflow_ref or ""))
+            previous_project = str(binding.get("project_id") or "")
+            if previous_project:
+                retirement_projects = binding.setdefault(
+                    "portrait_retirement_project_ids", []
+                )
+                if previous_project not in retirement_projects:
+                    retirement_projects.append(previous_project)
+                    retirement_projects.sort()
+                self._scope_workspace_aliases_for_project_change(
+                    binding,
+                    previous_project,
+                    None,
+                )
+            binding["project_id"] = None
             self._write(data)
             return self._public(binding)
 
@@ -686,6 +890,14 @@ class BindingStore:
                         draft_id=draft_id,
                         canonical_person_id=existing_canonical,
                     )
+            if isinstance(existing, dict) and existing.get("workspaceAliases") not in (
+                None,
+                "",
+            ):
+                normalized["workspaceAliases"] = _normalize_workspace_alias_history(
+                    existing.get("workspaceAliases"),
+                    draft_id=draft_id,
+                )
             drafts[draft_id] = normalized
             self._write(data)
             result = deepcopy(normalized)
@@ -739,6 +951,9 @@ class BindingStore:
                 marker,
                 draft_id=safe_client_id,
                 canonical_person_id=safe_canonical_id,
+            )
+            draft.setdefault("workspaceAliases", {})[safe_project_id] = deepcopy(
+                draft["workspaceAlias"]
             )
             self._write(data)
             return deepcopy(draft)

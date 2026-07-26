@@ -58,6 +58,144 @@ def test_workflow_and_source_refs_are_random_stable_and_private(tmp_path):
     assert oct(os.stat(path).st_mode & 0o777) == "0o600"
 
 
+def test_project_reassociation_and_portrait_retirement_marker_share_one_atomic_write(
+    tmp_path,
+    monkeypatch,
+):
+    path = str(tmp_path / "bindings.json")
+    store = BindingStore(path)
+    workflow = store.resolve_workflow("atomic-project-transition")
+    store.associate(workflow["workflowRef"], "project-a", "production")
+    original_write = store._write
+
+    def fail_write(_value):
+        raise OSError("injected atomic write failure")
+
+    monkeypatch.setattr(store, "_write", fail_write)
+    with pytest.raises(OSError, match="injected"):
+        store.associate(workflow["workflowRef"], "project-b", "production")
+
+    reloaded = BindingStore(path)
+    assert reloaded.get(workflow["workflowRef"])["projectId"] == "project-a"
+    with reloaded._lock:
+        persisted = reloaded._find(reloaded._read(), workflow["workflowRef"])
+    assert persisted.get("portrait_retirement_project_ids") in (None, [])
+    assert persisted.get("project_scope_revision") in (None, 0)
+
+    monkeypatch.setattr(store, "_write", original_write)
+    store.associate(workflow["workflowRef"], "project-b", "production")
+    reloaded = BindingStore(path)
+    with reloaded._lock:
+        persisted = reloaded._find(reloaded._read(), workflow["workflowRef"])
+    assert persisted["project_id"] == "project-b"
+    assert persisted["portrait_retirement_project_ids"] == ["project-a"]
+    assert persisted["project_scope_revision"] == 1
+
+
+def test_project_rebind_archives_hosted_id_to_stable_local_alias_and_blocks_unknown_ids(
+    tmp_path,
+):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("project-scoped-person-alias")
+    store.associate(workflow["workflowRef"], "project-a", "production")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    draft = store.put_person_draft(
+        workflow["workflowRef"],
+        {"displayName": "Alex", "sourceRefs": [source]},
+    )
+    hosted_a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    store.record_workspace_alias(
+        workflow["workflowRef"],
+        "project-a",
+        draft["draftId"],
+        hosted_a,
+        "new",
+        "a" * 64,
+    )
+
+    store.associate(workflow["workflowRef"], "project-b", "production")
+    with store._lock:
+        binding = store._find(store._read(), workflow["workflowRef"])
+    assert binding["workspace_canonical_aliases"]["project-a"][hosted_a] == draft["draftId"]
+    assert BindingStore._resolve_project_scoped_person_in_binding(
+        binding, hosted_a
+    ) == draft["draftId"]
+    assert "canonicalPersonId" not in binding["person_drafts"][draft["draftId"]]
+    with pytest.raises(ValueError, match="identity_requires_review"):
+        BindingStore._resolve_project_scoped_person_in_binding(
+            binding,
+            "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        )
+
+    hosted_b = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+    store.record_workspace_alias(
+        workflow["workflowRef"],
+        "project-b",
+        draft["draftId"],
+        hosted_b,
+        "new",
+        "b" * 64,
+    )
+    with store._lock:
+        rebound = store._find(store._read(), workflow["workflowRef"])
+    assert BindingStore._resolve_project_scoped_person_in_binding(
+        rebound, hosted_b
+    ) == hosted_b
+
+
+def test_project_alias_history_survives_draft_edit_and_switch_back(tmp_path):
+    store = BindingStore(str(tmp_path / "bindings.json"))
+    workflow = store.resolve_workflow("project-alias-edit-history")
+    store.associate(workflow["workflowRef"], "project-a", "production")
+    source = store.resolve_source(
+        workflow["workflowRef"], "person.png", "reference"
+    )["sourceRef"]
+    draft = store.put_person_draft(
+        workflow["workflowRef"],
+        {"displayName": "Alex", "sourceRefs": [source]},
+    )
+    hosted_a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    hosted_b = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+    store.record_workspace_alias(
+        workflow["workflowRef"],
+        "project-a",
+        draft["draftId"],
+        hosted_a,
+        "new",
+        "a" * 64,
+    )
+    store.associate(workflow["workflowRef"], "project-b", "production")
+    store.record_workspace_alias(
+        workflow["workflowRef"],
+        "project-b",
+        draft["draftId"],
+        hosted_b,
+        "new",
+        "b" * 64,
+    )
+
+    editable = store.list_person_drafts(workflow["workflowRef"])[0]
+    store.put_person_draft(
+        workflow["workflowRef"],
+        {**editable, "role": "Lead"},
+    )
+    store.associate(workflow["workflowRef"], "project-a", "production")
+
+    with store._lock:
+        binding = store._find(store._read(), workflow["workflowRef"])
+    restored = binding["person_drafts"][draft["draftId"]]
+    assert restored["workspaceAlias"]["canonicalPersonId"] == hosted_a
+    assert {
+        project_id: marker["canonicalPersonId"]
+        for project_id, marker in restored["workspaceAliases"].items()
+    } == {
+        "project-a": hosted_a,
+        "project-b": hosted_b,
+    }
+
+
 def test_source_manifest_ignores_graph_hash_for_rights_hash_and_strips_local_fields(tmp_path):
     store = BindingStore(str(tmp_path / "bindings.json"))
     workflow = store.resolve_workflow("local-workflow", GRAPH_HASH)

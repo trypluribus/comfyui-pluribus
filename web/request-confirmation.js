@@ -2,6 +2,12 @@ import { createProjectConfirmation } from "./api.js";
 import { scanMatchesCurrentWorkflow } from "./canvas.js";
 import { button, el, metaLabel, pluribusMark, toast } from "./components.js";
 import { loadProjectContext } from "./project.js";
+import {
+  clearConfirmationClientRequestId,
+  ensureConfirmationClientRequestId,
+  replaceConfirmationClientRequestIdAfterConflict,
+  shouldRetainConfirmationClientRequestId,
+} from "./request-idempotency.js";
 import { getState, isWorkflowContextReady, projectSourceLinks } from "./store.js";
 import { aiActionRowsForLinks } from "./use-brief-contract.js";
 
@@ -77,17 +83,11 @@ export async function openConfirmationDialog(person) {
   });
 
   let clientRequestId = "";
+  let requestFingerprint = "";
   const send = button("Request confirmation", "primary", async () => {
     if (!recipientEmail.value.trim() || !recipientEmail.checkValidity()) {
       recipientEmail.reportValidity();
       return;
-    }
-    if (!clientRequestId) {
-      if (!crypto.randomUUID) {
-        toast("This browser cannot create a secure request ID.");
-        return;
-      }
-      clientRequestId = crypto.randomUUID();
     }
     send.disabled = true;
     recipientEmail.disabled = true;
@@ -106,8 +106,8 @@ export async function openConfirmationDialog(person) {
         throw new Error("The graph changed. Find people again before requesting confirmation.");
       }
       const rightsManifestHash = currentManifestHashForRequest();
-      const result = await createProjectConfirmation(state.activeProjectId, {
-        clientRequestId,
+      const requestMaterial = {
+        projectId: state.activeProjectId,
         workflowRef: state.workflowBinding?.workflowRef,
         rightsManifestHash,
         talentRecordId: person.id || person.talentRecordId,
@@ -117,11 +117,62 @@ export async function openConfirmationDialog(person) {
         message: note.value.trim() || undefined,
         delivery,
         expiresInDays: 14,
+      };
+      if (!clientRequestId) {
+        const durableRequest = await ensureConfirmationClientRequestId(requestMaterial);
+        clientRequestId = durableRequest.clientRequestId;
+        requestFingerprint = durableRequest.fingerprint;
+      }
+      const payload = (requestId) => ({
+        clientRequestId: requestId,
+        workflowRef: requestMaterial.workflowRef,
+        rightsManifestHash: requestMaterial.rightsManifestHash,
+        talentRecordId: requestMaterial.talentRecordId,
+        recipientEmail: requestMaterial.recipientEmail,
+        recipientName: requestMaterial.recipientName,
+        recipientRole: requestMaterial.recipientRole,
+        message: requestMaterial.message,
+        delivery: requestMaterial.delivery,
+        expiresInDays: requestMaterial.expiresInDays,
       });
+      let result;
+      try {
+        result = await createProjectConfirmation(
+          state.activeProjectId,
+          payload(clientRequestId)
+        );
+      } catch (createError) {
+        if (createError?.code !== "client_request_key_conflict") throw createError;
+        const replacement = await replaceConfirmationClientRequestIdAfterConflict(
+          requestMaterial,
+          { fingerprint: requestFingerprint, clientRequestId }
+        );
+        clientRequestId = replacement.clientRequestId;
+        requestFingerprint = replacement.fingerprint;
+        result = await createProjectConfirmation(
+          state.activeProjectId,
+          payload(clientRequestId)
+        );
+      }
       const url = result.reviewUrl || result.url || result.confirmationUrl || result.urlPath || "";
       const emailDelivery =
         result.emailDelivery || result.confirmation?.emailDelivery || result.delivery?.emailDelivery;
       const deliveryState = typeof result.delivery === "string" ? result.delivery : emailDelivery;
+      // A canonical but ambiguous result still needs the durable identity so a
+      // reload replays this request instead of creating a second delivery.
+      if (!shouldRetainConfirmationClientRequestId(deliveryState)) {
+        clearConfirmationClientRequestId(requestFingerprint, clientRequestId);
+        requestFingerprint = "";
+        clientRequestId = "";
+      }
+      if (deliveryState === "suppressed") {
+        linkCode.textContent =
+          "This request expired or was resolved before another email could be sent.";
+        toast("The request is closed. No additional email was sent.");
+        send.textContent = "Request closed";
+        await loadProjectContext(state.activeProjectId);
+        return;
+      }
       if (url) linkCode.textContent = url;
       if (result.existing && !url) {
         if (["sent", "already_sent"].includes(deliveryState)) {
@@ -143,7 +194,6 @@ export async function openConfirmationDialog(person) {
         linkCode.textContent =
           "The earlier request cannot reveal its secure link again and may remain valid. Choose Create replacement only if you deliberately want an additional request.";
         toast("The existing link is unavailable. A replacement requires a deliberate new request.");
-        clientRequestId = "";
         send.textContent = "Create replacement request";
         send.disabled = false;
         recipientEmail.disabled = false;

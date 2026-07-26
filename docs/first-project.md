@@ -331,12 +331,14 @@ second request. Retry or reconcile the same client request ID. A lost network
 response may occur after the canonical request or provider email attempt was
 already created.
 
-**Retry same request** preserves that ID while the request dialog remains open.
-Do not reload or close the dialog during an ambiguous link-only create. The
-current v0.4 candidate cannot reconstruct the dialog-held retry ID after a
-reload, and an idempotent replay may intentionally refuse to reveal the secure
-URL again. If the dialog is lost, refresh canonical project state and reconcile
-the existing request instead of creating another one blindly.
+**Retry same request** stores an opaque request-material hash and UUID in
+browser-local plugin state. Closing the dialog, reloading the page, or
+restarting ComfyUI reuses that ID when you reopen the dialog and submit the same
+unchanged request details. The server reconstructs the saved secure link from
+its encrypted delivery record instead of creating another request. If you
+change the recipient, message, delivery mode, or other request material, that is
+deliberately a new request; use project status and retry controls when
+reconciling the existing one.
 
 ## 9. Rehearse the recipient experience separately
 
@@ -444,7 +446,10 @@ The following stays local:
 - graph JSON and graph filenames;
 - prompts and node IDs;
 - local source keys, file names, and paths;
-- images, models, LoRAs, character sheets, storyboards, renders, and video;
+- full images, sampled video frames, models, LoRAs, character sheets,
+  storyboards, renders, and video;
+- local occurrence and candidate IDs, crop artifact names, face embeddings,
+  and portrait quality measurements;
 - the private mapping between local keys and random Pluribus references.
 
 The connected flow sends:
@@ -457,6 +462,10 @@ The connected flow sends:
 - the intended-use form;
 - confirmation recipient, expected role, note, delivery choice, and stable
   request ID.
+- on unreleased `main`, up to five producer-confirmed, best-ranked,
+  re-encoded square JPEG portraits per project person, each no larger than
+  1 MB, plus opaque idempotency metadata. These hosted portraits can be
+  replaced or retired when the confirmed appearance selection changes.
 
 The device label sent during pairing is `ComfyUI plugin`, not your hostname.
 
@@ -467,7 +476,9 @@ The device label sent during pairing is `ComfyUI plugin`, not your hostname.
   appearances locally, but it does not identify a legal person or determine
   permission.
 - No automatic legal identification of the person in an image.
-- No media, graph, prompt, or model upload through this plugin.
+- Supported RC2 uploads no media, graph, prompt, or model data. Unreleased
+  `main` has one narrow media exception: the bounded, sanitized project-person
+  portrait derivatives described above.
 - No storyboard, character-sheet, or render generation.
 - No contracts, e-signature, payments, marketplace, or legal advice.
 - No self-serve organization/team creation and no organization picker in the
@@ -479,8 +490,10 @@ The device label sent during pairing is `ComfyUI plugin`, not your hostname.
   marker-only character sheet or storyboard can validate source/person and
   scope workflow, but it does not validate downstream action inference or a
   render-ready production graph.
-- Link-only ambiguous retry identity is held by the open dialog and is not yet
-  recoverable after a reload.
+- Unreleased `main` keeps only an opaque request-material hash and UUID in
+  browser localStorage so unchanged ambiguous requests can replay after a
+  reload. If browser storage is disabled or full, recovery is limited to the
+  currently open dialog; reconcile the saved request instead of recreating it.
 
 For dated production evidence, known verification boundaries, and the remaining
 final-tag gates, see the

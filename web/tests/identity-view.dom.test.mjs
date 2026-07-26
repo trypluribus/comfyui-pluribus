@@ -7,6 +7,11 @@ import {
   openIdentityReviewDialog,
   renderIdentityPeople,
 } from "../identity-view.js";
+import {
+  identityWorkspaceSyncSummary,
+  refreshIdentityWorkspaceSyncState,
+  retryIdentityWorkspaceSync,
+} from "../identity-analysis.js";
 import { getState, invalidateScan, setState, subscribe } from "../store.js";
 
 const PROJECT_PERSON_ID = "22222222-2222-4222-8222-222222222222";
@@ -277,6 +282,125 @@ test("People cards show every durable identity sync state explicitly", () => {
     if (syncState === "reconnect_required") {
       assert.equal(buttonWithText("Reconnect")?.textContent, "Reconnect");
     }
+  }
+});
+
+test("panel-load status never reports Synced while a project portrait is pending", async () => {
+  installState("synced");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (path) => {
+    assert.equal(String(path), "/pluribus/identity/sync");
+    return Response.json({
+      entries: [{
+        workflowRef: WORKFLOW_REF,
+        projectId: "project-fixture",
+        revision: 4,
+        state: "synced",
+      }],
+      portraitEntries: [{
+        projectId: "project-fixture",
+        operationId: "portrait-pending",
+        state: "retire_pending",
+      }],
+    });
+  };
+  try {
+    assert.equal(await refreshIdentityWorkspaceSyncState(), "sync_pending");
+    const container = document.querySelector("#people");
+    renderIdentityPeople(container);
+    assert.equal(
+      container.querySelector(".plb-person-card .plb-status-pill")?.textContent,
+      "Sync pending"
+    );
+    assert.ok(buttonWithText("Retry sync"));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("retry keeps projection-blocked portrait work pending and actionable", async () => {
+  installState("synced");
+  const originalFetch = globalThis.fetch;
+  const payload = {
+    entries: [{
+      workflowRef: WORKFLOW_REF,
+      projectId: "project-fixture",
+      revision: 4,
+      state: "synced",
+    }],
+    portraitEntries: [{
+      projectId: "project-fixture",
+      operationId: "project:project-fixture",
+      state: "projection_blocked",
+      code: "identity_requires_review",
+      message: "Review this identity in the current project.",
+    }],
+  };
+  globalThis.fetch = async (path) => {
+    if (String(path) === "/pluribus/identity/sync/retry") return Response.json(payload);
+    if (String(path) === "/pluribus/identity/sync") return Response.json(payload);
+    if (String(path).includes("/pluribus/bindings/") && String(path).endsWith("/people")) {
+      return Response.json({ drafts: getState().personDrafts });
+    }
+    return Response.json({ message: `Unexpected ${path}` }, { status: 500 });
+  };
+  try {
+    assert.equal(
+      await retryIdentityWorkspaceSync({ syncManifest: false }),
+      "sync_pending"
+    );
+    assert.equal(getState().identitySyncIssue?.code, "identity_requires_review");
+    const container = document.querySelector("#people");
+    renderIdentityPeople(container);
+    assert.match(buttonWithText("Retry sync")?.title || "", /Review this identity/);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("portrait authentication failure raises Reconnect required above synced identity", () => {
+  const summary = identityWorkspaceSyncSummary(
+    {
+      entries: [{ workflowRef: WORKFLOW_REF, revision: 4, state: "synced" }],
+      portraitEntries: [{
+        projectId: "project-fixture",
+        operationId: "portrait-auth",
+        state: "pending",
+        lastStatus: 401,
+      }],
+    },
+    WORKFLOW_REF,
+    "project-fixture"
+  );
+  assert.equal(summary.state, "reconnect_required");
+});
+
+test("old project sync receipts cannot mark a rebound project Synced", async () => {
+  installState("saved_local");
+  setState({
+    activeProjectId: "project-b",
+    workflowBinding: { workflowRef: WORKFLOW_REF, projectId: "project-b" },
+    identitySyncIssue: {
+      code: "identity_requires_review",
+      message: "Review identities in project B.",
+    },
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => Response.json({
+    entries: [{
+      workflowRef: WORKFLOW_REF,
+      projectId: "project-fixture",
+      revision: 4,
+      state: "synced",
+    }],
+    portraitEntries: [],
+  });
+  try {
+    assert.equal(await refreshIdentityWorkspaceSyncState(), null);
+    assert.equal(getState().identitySyncState, "saved_local");
+    assert.equal(getState().identitySyncIssue?.code, "identity_requires_review");
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 

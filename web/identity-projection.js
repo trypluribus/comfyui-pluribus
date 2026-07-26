@@ -32,15 +32,15 @@ function linkSourceRefs(link = {}) {
 }
 
 function draftId(draft = {}) {
-  return text(draft.draftId || draft.draft_id);
+  return text(draft?.draftId || draft?.draft_id);
 }
 
 function canonicalId(draft = {}) {
-  return text(draft.canonicalPersonId || draft.canonical_person_id);
+  return text(draft?.canonicalPersonId || draft?.canonical_person_id);
 }
 
 function mergedIntoId(draft = {}) {
-  return text(draft.mergedIntoDraftId || draft.merged_into_draft_id);
+  return text(draft?.mergedIntoDraftId || draft?.merged_into_draft_id);
 }
 
 export function activeIdentityDrafts(drafts = []) {

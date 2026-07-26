@@ -24,6 +24,7 @@ from .bindings import (
     _normalize_person_draft,
     _normalize_person_tombstone,
     _normalize_workspace_alias,
+    _normalize_workspace_alias_history,
     _require_identifier,
     _require_uuid,
 )
@@ -160,6 +161,30 @@ def _resolve_person_id(person_id: object, aliases: dict[str, str]) -> str:
         seen.add(current)
         current = aliases[current]
     return current
+
+
+def _project_scoped_links(
+    links: object,
+    binding: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Translate archived hosted ids back to stable local aliases on rebind."""
+
+    result: list[dict[str, Any]] = []
+    for raw_link in links if isinstance(links, list) else []:
+        if not isinstance(raw_link, dict):
+            continue
+        link = deepcopy(raw_link)
+        if str(link.get("state") or "confirmed") == "confirmed":
+            raw_person_id = link.get("personId", link.get("person_id"))
+            if raw_person_id:
+                link["personId"] = (
+                    BindingStore._resolve_project_scoped_person_in_binding(
+                        binding, raw_person_id
+                    )
+                )
+                link.pop("person_id", None)
+        result.append(link)
+    return result
 
 
 def person_source_projection(
@@ -927,6 +952,7 @@ class IdentityDecisionService:
                 workflow_ref = str(stored.get("workflowRef") or "")
                 bindings_data = self._read_bindings_strict()
                 binding = self.bindings._find(bindings_data, workflow_ref)
+                active_project_id = str(binding.get("project_id") or "")
                 outbox_changed = self._supersede_tombstoned_operations(
                     outbox, binding
                 )
@@ -1036,6 +1062,11 @@ class IdentityDecisionService:
             with self.identity._lock, self.bindings._lock:
                 bindings_data = self._read_bindings_strict()
                 binding = self.bindings._find(bindings_data, workflow_ref)
+                commit_project_id = str(binding.get("project_id") or "")
+                if not commit_project_id or commit_project_id != active_project_id:
+                    raise IdentityConflictError(
+                        "The workflow project changed while its person mapping was syncing. Retry against the current project."
+                    )
                 drafts = binding.get("person_drafts")
                 draft = drafts.get(client_person_id) if isinstance(drafts, dict) else None
                 request_hash = _stable_hash(request_body)
@@ -1058,6 +1089,10 @@ class IdentityDecisionService:
                         draft_id=client_person_id,
                         canonical_person_id=returned_person_id,
                     )
+                    if commit_project_id:
+                        draft.setdefault("workspaceAliases", {})[
+                            commit_project_id
+                        ] = deepcopy(draft["workspaceAlias"])
                 else:
                     tombstones = binding.get("person_draft_tombstones")
                     tombstone = (
@@ -1095,6 +1130,10 @@ class IdentityDecisionService:
                         draft_id=client_person_id,
                         canonical_person_id=returned_person_id,
                     )
+                    if commit_project_id:
+                        tombstone.setdefault("workspaceAliases", {})[
+                            commit_project_id
+                        ] = deepcopy(tombstone["workspaceAlias"])
                 self.bindings._write(bindings_data)
 
                 outbox = self._read_outbox()
@@ -1368,6 +1407,10 @@ class IdentityDecisionService:
                     alias_value = active_drafts.pop(resolved_merge_id, None)
                     if not isinstance(alias_value, dict):
                         continue
+                    alias_history = _normalize_workspace_alias_history(
+                        alias_value.get("workspaceAliases"),
+                        draft_id=resolved_merge_id,
+                    )
                     tombstones[resolved_merge_id] = {
                         "draftId": resolved_merge_id,
                         "mergedIntoDraftId": target_draft_id,
@@ -1376,6 +1419,11 @@ class IdentityDecisionService:
                         **(
                             {"workspaceAlias": deepcopy(alias_value["workspaceAlias"])}
                             if alias_value.get("workspaceAlias")
+                            else {}
+                        ),
+                        **(
+                            {"workspaceAliases": alias_history}
+                            if alias_history
                             else {}
                         ),
                     }
@@ -1406,8 +1454,11 @@ class IdentityDecisionService:
         )
 
         projection_aliases = _alias_map(active_drafts, tombstones)
+        scoped_projection_links = _project_scoped_links(
+            link_response["links"], binding_after
+        )
         projected = person_source_projection(
-            link_response["links"], cached, projection_aliases
+            scoped_projection_links, cached, projection_aliases
         )
         merged_manual_refs: set[str] = set()
         if target_draft_id:
@@ -1446,6 +1497,7 @@ class IdentityDecisionService:
                 known_source_refs,
                 allow_empty_source_refs=True,
                 allow_workspace_alias=True,
+                allow_workspace_alias_history=True,
                 allow_manual_source_refs=True,
             )
         for value in tombstones.values():
@@ -1473,6 +1525,7 @@ class IdentityDecisionService:
             tombstones=tombstones,
             links=link_response["links"],
             cached=cached,
+            binding=binding_after,
         )
         outbox_after["entries"][entry_id] = entry
 
@@ -1705,10 +1758,12 @@ class IdentityDecisionService:
         tombstones: dict[str, Any],
         links: list[dict[str, Any]],
         cached: object,
+        binding: dict[str, Any],
     ) -> dict[str, Any]:
         aliases = _alias_map(active_drafts, tombstones)
+        scoped_links = _project_scoped_links(links, binding)
         source_people = source_person_projection(
-            links, cached, aliases, active_drafts
+            scoped_links, cached, aliases, active_drafts
         )
         projected_person_ids = {
             person_id

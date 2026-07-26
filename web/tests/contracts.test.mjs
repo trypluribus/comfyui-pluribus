@@ -20,6 +20,7 @@ import {
   setState,
   wasInvited,
 } from "../store.js";
+import { projectRefreshPatch, projectRefreshReady } from "../project-contract.js";
 import {
   canonicalRightsManifest,
   manifestOverridesForLocalReviews,
@@ -230,6 +231,29 @@ test("connected context hydration retries the durable identity outbox", async ()
   assert.match(hydration, /await retryIdentityWorkspaceSync\(\)/);
 });
 
+test("a reconnect refresh converges a renamed project without dropping the active context", () => {
+  const disconnected = {
+    connection: { state: "offline" },
+    workspaceReady: true,
+    workspace: { id: "workspace-1" },
+    projects: [{ id: "project-1", title: "Old project name" }],
+    activeProjectId: "project-1",
+    projectContext: { id: "project-1", title: "Old project name", people: [] },
+    manifestSynced: true,
+  };
+  assert.equal(projectRefreshReady(disconnected), false);
+
+  const connected = { ...disconnected, connection: { state: "connected" } };
+  assert.equal(projectRefreshReady(connected), true);
+  const patch = projectRefreshPatch(connected, [
+    { id: "project-1", title: "Renamed project" },
+  ]);
+  assert.equal(patch.projects[0].title, "Renamed project");
+  assert.equal(patch.activeProjectId, "project-1");
+  assert.equal(patch.projectContext.title, "Renamed project");
+  assert.equal(patch.manifestSynced, undefined);
+});
+
 test("graph-load invalidation clears the previous workflow action context", () => {
   setState({
     scan: { workflow_name: "Old", workflow_fingerprint: "a".repeat(64), persons: [] },
@@ -435,6 +459,9 @@ test("native sidebar rerenders reuse one panel mount and one subscription", asyn
   assert.match(source, /unsubscribePanel = subscribe\(/);
   assert.match(source, /export function unmountPanel\(\)/);
   assert.match(source, /unsubscribePanel\?\.\(\)/);
+  assert.match(source, /refreshProjectTitlesOnMount\(\)/);
+  assert.match(source, /void refreshProjectsWhenConnected\(state\)/);
+  assert.match(source, /projectTitlesRefreshedForConnection/);
   assert.ok(source.indexOf("unmountPanel();") < source.indexOf('root = el("div", { class: "plb-root" })'));
   assert.match(source, /identityOnly.*activeTab === "overview".*activeTab === "people"/s);
 });
@@ -1345,6 +1372,58 @@ test("source projection is fail closed for unresolved or unpromoted appearances"
   ], [localDraft]).get("source-a"), {
     disposition: "review_required",
     talentRecordIds: [],
+  });
+});
+
+test("project rebind refreshes aliases and cannot send a raw A person id to B", async () => {
+  const projectSource = await readFile(new URL("../project.js", import.meta.url), "utf8");
+  assert.match(
+    projectSource,
+    /if \(projectChanged\)[\s\S]*await getLocalPersonDrafts\(binding\.workflowRef\)/
+  );
+  assert.match(
+    projectSource,
+    /const context = await loadProjectContext\(projectId\);[\s\S]*if \(projectChanged\)[\s\S]*return context;[\s\S]*syncCurrentRightsManifest\(\)/
+  );
+
+  const hostedA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const hostedB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const localId = "11111111-1111-4111-8111-111111111111";
+  const identity = normalizeIdentityPayload({
+    candidates: [{ candidateId: "candidate-a", occurrenceIds: ["one"] }],
+    occurrences: [{
+      occurrenceId: "one",
+      candidateId: "candidate-a",
+      sourceRef: "source-a",
+    }],
+  });
+  const rawALink = [{
+    candidateId: "candidate-a",
+    personId: hostedA,
+    state: "confirmed",
+    occurrenceIds: ["one"],
+  }];
+  const refreshedDrafts = [{ draftId: localId, displayName: "Nisreen" }];
+  const rebound = projectIdentitySources(identity, rawALink, refreshedDrafts, []);
+  assert.deepEqual(rebound.get("source-a"), {
+    disposition: "review_required",
+    talentRecordIds: [],
+  });
+  assert.equal(
+    JSON.stringify([...rebound.values()]).includes(hostedA),
+    false,
+    "the old A talentRecordId must never enter B manifest material"
+  );
+
+  const explicitlyReviewed = projectIdentitySources(
+    identity,
+    [{ ...rawALink[0], personId: localId }],
+    [{ ...refreshedDrafts[0], canonicalPersonId: hostedB }],
+    [{ id: hostedB, displayName: "Nisreen" }]
+  );
+  assert.deepEqual(explicitlyReviewed.get("source-a"), {
+    disposition: "linked",
+    talentRecordIds: [hostedB],
   });
 });
 

@@ -119,12 +119,19 @@ That explicit action downloads checksum-pinned YuNet and SFace weights from the
 OpenCV model repository. The plugin does not silently download models or run
 `pip` from its web panel.
 
-Image and video bytes stay inside the configured ComfyUI input, output, and
-temporary directories. Face embeddings exist only in memory for the current
-analysis. Derived portrait crops, evidence sheets, job state, and cache entries
-are private local files under `PLURIBUS_DATA_DIR/identity` when that override
-is set, or under ComfyUI's persistent user directory by default. They are not
-sent when the user connects a Pluribus account.
+Full source images, video, and sampled frames stay inside the configured
+ComfyUI input, output, and temporary directories. Face embeddings exist only in
+memory for the current analysis. Derived crops, evidence sheets, job state, and
+cache entries are private local files under `PLURIBUS_DATA_DIR/identity` when
+that override is set, or under ComfyUI's persistent user directory by default.
+
+After a producer confirms appearances and promotes the person into a connected
+project, unreleased `main` may upload up to five best-ranked, re-encoded square
+JPEG portrait derivatives for that project-person record. Each derivative is
+at most 1 MB and can be replaced or retired when the confirmed selection
+changes. Full source media, filenames and paths, sampled frames, occurrence and
+candidate IDs, crop artifact names, embeddings, and quality measurements are
+not uploaded.
 
 Run ComfyUI on loopback or behind authentication you trust. The plugin's
 same-origin `/pluribus/*` routes can read and mutate the paired workspace using
@@ -312,10 +319,12 @@ or ambiguous, keep the same request and reconcile it; do not create a second
 request merely because an email response was lost. Email requests are limited
 to 30 per workspace/user per hour.
 
-**Retry same request** keeps the ID while the request dialog stays open. A
-reload currently loses that dialog-held ID and cannot safely re-reveal an
-already-created link-only URL; refresh canonical project state and reconcile
-instead of blindly creating another request.
+**Retry same request** uses an opaque request-material hash and UUID stored in
+browser-local plugin state. When delivery is pending or ambiguous, closing the
+dialog, reloading the page, or restarting ComfyUI reuses that ID for the same
+unchanged request details instead of creating a second request. Reopen the
+dialog and submit the same details, or use the saved project's retry controls.
+Changing the request material deliberately creates a different request.
 
 ### 6. Read the statuses literally
 
@@ -363,7 +372,7 @@ The local scan does not upload:
 - prompts;
 - node IDs;
 - local filenames or source paths;
-- reference images;
+- full reference images or other source media;
 - LoRA/model files;
 - character sheets, storyboards, renders, or videos.
 
@@ -371,6 +380,14 @@ Local source previews and unpromoted person drafts stay on the ComfyUI side of
 this boundary. The browser may request a supported input image from the same
 ComfyUI origin to render its card; the plugin does not forward that media to
 Pluribus.
+
+Once a producer confirms appearances and promotes the person into a connected
+project, the plugin may upload up to five best-ranked, sanitized square JPEG
+portrait derivatives, each no larger than 1 MB, to that selected project-person
+record. Those hosted portraits can be replaced or retired as the confirmed
+selection changes. The upload contains only the re-encoded portrait bytes and
+opaque idempotency metadata—not the source file, full frame, filename, path,
+occurrence or candidate ID, crop artifact name, embedding, or quality metrics.
 
 The connected flow sends only the information required for the canonical
 workspace record:
@@ -384,6 +401,8 @@ workspace record:
   class names;
 - the structured intended-use form;
 - confirmation recipient, message, delivery selection, and stable request ID.
+- the sanitized project-person portraits described above, when confirmed
+  appearances are available.
 
 The pairing label is the generic `ComfyUI plugin`; the local hostname is not
 sent. The frontend uses the system font stack and does not request Google Fonts.
@@ -411,9 +430,11 @@ identities.
   are the same person or that anyone owns or cleared the source.
 - A synthetic-only result means no supported real-person source was found in
   the graph. It is not a legal conclusion.
-- Pluribus does not upload or host creative media through this plugin. Preview
-  and optional identity routes inspect files locally inside configured ComfyUI
-  media directories; only reviewed metadata is sent when the user connects.
+- Pluribus does not upload or host full creative source media through this
+  plugin. Preview and optional identity routes inspect files locally inside
+  configured ComfyUI media directories. The only media exception on unreleased
+  `main` is the bounded, sanitized project-person portrait sync described
+  above.
 - The plugin does not create storyboards, character sheets, shots, or final
   renders.
 - v0.4 does not provide contracts, e-signature, payment, union clearance,

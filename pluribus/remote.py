@@ -32,6 +32,10 @@ _pending: dict[str, Any] | None = None
 
 # fetch(method, url, payload, token) -> (status_code, parsed_json)
 Fetch = Callable[[str, str, dict | None, str | None], Awaitable[tuple[int, dict]]]
+BinaryFetch = Callable[
+    [str, str, bytes, dict[str, str], str],
+    Awaitable[tuple[int, dict]],
+]
 
 
 class RemoteUnavailable(Exception):
@@ -60,6 +64,34 @@ async def _default_fetch(
                     data = {}
                 return response.status, data if isinstance(data, dict) else {}
     except Exception as exc:  # DNS, refused, timeout, TLS — all mean "offline".
+        raise RemoteUnavailable(str(exc)) from exc
+
+
+async def _default_binary_fetch(
+    method: str,
+    url: str,
+    payload: bytes,
+    headers: dict[str, str],
+    token: str,
+) -> tuple[int, dict]:
+    import aiohttp
+
+    request_headers = {**headers, "Authorization": f"Bearer {token}"}
+    timeout = aiohttp.ClientTimeout(total=_REMOTE_REQUEST_TIMEOUT_SECONDS)
+    try:
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.request(
+                method,
+                url,
+                data=payload,
+                headers=request_headers,
+            ) as response:
+                try:
+                    data = await response.json()
+                except Exception:
+                    data = {}
+                return response.status, data if isinstance(data, dict) else {}
+    except Exception as exc:
         raise RemoteUnavailable(str(exc)) from exc
 
 
@@ -392,6 +424,136 @@ async def update_project_person(
         f"/api/plugin/projects/{project_id}/people/{person_id}",
         payload,
         fetch,
+    )
+
+
+async def upload_project_person_portrait(
+    connection_path: str,
+    project_id: str,
+    person_id: str,
+    client_portrait_id: str,
+    payload: bytes,
+    *,
+    content_sha256: str,
+    mime_type: str,
+    display_order: int,
+    make_primary: bool,
+    fetch: BinaryFetch | None = None,
+) -> tuple[int, dict]:
+    """Upload only one sanitized portrait and opaque idempotency metadata."""
+
+    project_id = _opaque_id(project_id, "projectId")
+    person_id = _opaque_id(person_id, "personId")
+    try:
+        safe_portrait_id = str(uuid.UUID(str(client_portrait_id)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("clientPortraitId must be a UUID.") from exc
+    safe_hash = str(content_sha256 or "").lower()
+    if not SHA256_PATTERN.fullmatch(safe_hash):
+        raise ValueError("contentSha256 must be a SHA-256 hex digest.")
+    if mime_type not in {"image/jpeg", "image/webp"}:
+        raise ValueError("Portrait mimeType must be image/jpeg or image/webp.")
+    if (
+        isinstance(display_order, bool)
+        or not isinstance(display_order, int)
+        or not 0 <= display_order <= 4
+    ):
+        raise ValueError("displayOrder must be between 0 and 4.")
+    if not isinstance(make_primary, bool):
+        raise ValueError("makePrimary must be a boolean.")
+    if not isinstance(payload, bytes) or not 0 < len(payload) <= 1024 * 1024:
+        raise ValueError("Portrait bytes must be between 1 byte and 1 MB.")
+
+    connection = read_connection(connection_path)
+    if not connection:
+        return 401, {
+            "state": "disconnected",
+            "message": "Connect this ComfyUI plugin to Pluribus first.",
+        }
+    fetch = fetch or _default_binary_fetch
+    headers = {
+        "Content-Type": mime_type,
+        "Content-Length": str(len(payload)),
+        "X-Pluribus-Content-Sha256": safe_hash,
+        "X-Pluribus-Display-Order": str(display_order),
+        "X-Pluribus-Make-Primary": "true" if make_primary else "false",
+    }
+    try:
+        return await fetch(
+            "PUT",
+            (
+                f"{connection.get('server_url', SERVER_URL)}"
+                f"/api/plugin/projects/{project_id}/people/{person_id}/portraits/"
+                f"{safe_portrait_id}"
+            ),
+            payload,
+            headers,
+            connection["token"],
+        )
+    except RemoteUnavailable:
+        return 503, {
+            "state": "offline",
+            "message": "Pluribus could not be reached. The portrait remains queued locally.",
+        }
+
+
+async def retire_project_person_portrait(
+    connection_path: str,
+    project_id: str,
+    person_id: str,
+    client_portrait_id: str,
+    storage_generation: str,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    project_id = _opaque_id(project_id, "projectId")
+    person_id = _opaque_id(person_id, "personId")
+    try:
+        safe_portrait_id = str(uuid.UUID(str(client_portrait_id)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("clientPortraitId must be a UUID.") from exc
+    try:
+        safe_generation = str(uuid.UUID(str(storage_generation)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("storageGeneration must be a UUID.") from exc
+    return await _proxy_json(
+        connection_path,
+        "DELETE",
+        (
+            f"/api/plugin/projects/{project_id}/people/{person_id}/portraits/"
+            f"{safe_portrait_id}"
+        ),
+        {"storageGeneration": safe_generation},
+        fetch=fetch,
+    )
+
+
+async def resolve_project_person_portrait_generation(
+    connection_path: str,
+    project_id: str,
+    person_id: str,
+    client_portrait_id: str,
+    client_content_sha256: str,
+    fetch: Fetch | None = None,
+) -> tuple[int, dict]:
+    """Resolve an opaque hosted generation only for exact frozen client bytes."""
+
+    project_id = _opaque_id(project_id, "projectId")
+    person_id = _opaque_id(person_id, "personId")
+    try:
+        safe_portrait_id = str(uuid.UUID(str(client_portrait_id)))
+    except (ValueError, TypeError, AttributeError) as exc:
+        raise ValueError("clientPortraitId must be a UUID.") from exc
+    safe_hash = str(client_content_sha256 or "").lower()
+    if not SHA256_PATTERN.fullmatch(safe_hash):
+        raise ValueError("clientContentSha256 must be a SHA-256 hex digest.")
+    return await _proxy_json(
+        connection_path,
+        "GET",
+        (
+            f"/api/plugin/projects/{project_id}/people/{person_id}/portraits/"
+            f"{safe_portrait_id}?clientContentSha256={safe_hash}"
+        ),
+        fetch=fetch,
     )
 
 
