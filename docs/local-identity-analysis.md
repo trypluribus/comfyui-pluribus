@@ -26,11 +26,20 @@ release.
 
 ## Privacy and decision boundary
 
-- Images and sampled video frames stay on the ComfyUI machine.
+- Full source images, video, and sampled frames stay on the ComfyUI machine.
+- After a producer confirms appearances and promotes the person into a
+  connected project, the plugin may upload up to five best-ranked, re-encoded
+  square JPEG portrait derivatives for that project-person record. Each is no
+  larger than 1 MB and can be replaced or retired when the confirmed selection
+  changes.
 - Face vectors are held only in memory while one job is clustering. They are
   never written to disk, returned by an endpoint, or sent to Pluribus.
 - Persisted evidence contains source hashes, frame/time references, real crops,
   deterministic evidence sheets, and the producer's links.
+- Full source media, filenames and paths, sampled frames, occurrence and
+  candidate IDs, crop artifact names, embeddings, and quality measurements are
+  never part of a portrait upload. It contains only sanitized portrait bytes
+  and opaque idempotency metadata.
 - Occurrence and candidate IDs include the analyzed source-content hash. If a
   file changes in place, the next analysis produces new IDs and prior producer
   decisions do not silently attach to the changed pixels.

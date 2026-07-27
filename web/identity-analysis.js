@@ -259,6 +259,16 @@ export async function commitIdentityDecision(jobId, decision) {
   let syncState = typeof payload?.syncState === "string"
     ? payload.syncState
     : payload?.syncState?.state || "saved_local";
+  const portraitState = String(payload?.portraitSync?.state || "");
+  const portraitIssue = portraitState === "projection_blocked"
+    ? {
+        code: String(payload?.portraitSync?.code || "identity_projection_blocked"),
+        message: String(payload?.portraitSync?.message || "Portrait sync is paused until identity review is corrected."),
+      }
+    : null;
+  if (["sync_pending", "projection_blocked"].includes(portraitState) && syncState !== "reconnect_required") {
+    syncState = "sync_pending";
+  }
   if (jobIdFor(getState().identityJob) === jobId) {
     setState({
       identityLinks: links,
@@ -267,6 +277,7 @@ export async function commitIdentityDecision(jobId, decision) {
         ? { personDrafts: payload.personDrafts }
         : {}),
       identitySyncState: syncState,
+      identitySyncIssue: portraitIssue,
     });
   }
   const current = getState();
@@ -295,27 +306,72 @@ export async function commitIdentityDecision(jobId, decision) {
   return { ...payload, links, revision, syncState };
 }
 
-function latestIdentitySyncEntry(payload = {}, workflowRef = "") {
+function latestIdentitySyncEntry(payload = {}, workflowRef = "", projectId = "") {
   const entries = Array.isArray(payload?.entries) ? payload.entries : [];
-  const scoped = workflowRef
-    ? entries.filter((entry) => String(entry?.workflowRef || "") === workflowRef)
-    : entries;
+  const scoped = entries.filter((entry) =>
+    (!workflowRef || String(entry?.workflowRef || "") === workflowRef)
+    && (!projectId || String(entry?.projectId || "") === projectId)
+  );
   return [...scoped].sort((left, right) =>
     Number(right?.revision || 0) - Number(left?.revision || 0)
       || String(right?.entryId || "").localeCompare(String(left?.entryId || ""))
   )[0] || null;
 }
 
+export function identityWorkspaceSyncSummary(
+  payload = {},
+  workflowRef = "",
+  projectId = ""
+) {
+  const identityEntry = latestIdentitySyncEntry(payload, workflowRef, projectId);
+  const portraits = (Array.isArray(payload?.portraitEntries) ? payload.portraitEntries : [])
+    .filter((entry) => !projectId || String(entry?.projectId || "") === projectId);
+  const portraitReconnect = portraits.some((entry) =>
+    entry?.requiresReconnect === true
+    || Number(entry?.lastStatus || 0) === 401
+    || String(entry?.state || "") === "reconnect_required"
+  );
+  const portraitIssueEntry = portraits.find((entry) =>
+    String(entry?.state || "") === "projection_blocked"
+  );
+  const portraitPending = portraits.some((entry) =>
+    ["waiting_for_person", "pending", "retire_pending", "projection_blocked", "sync_pending"]
+      .includes(String(entry?.state || ""))
+  );
+  const identityState = String(identityEntry?.state || "");
+  const state = (
+    identityState === "reconnect_required" || portraitReconnect
+      ? "reconnect_required"
+      : identityState === "sync_pending" || portraitPending
+        ? "sync_pending"
+        : identityState === "saved_local"
+          ? "saved_local"
+          : identityState === "synced"
+            ? "synced"
+            : portraits.length && portraits.every((entry) => String(entry?.state || "") === "synced")
+              ? "synced"
+              : null
+  );
+  const issue = portraitIssueEntry
+    ? {
+        code: String(portraitIssueEntry.code || "identity_projection_blocked"),
+        message: String(portraitIssueEntry.message || "Portrait sync is paused until identity review is corrected."),
+      }
+    : null;
+  return { state, identityEntry, issue };
+}
+
 export async function refreshIdentityWorkspaceSyncState() {
   try {
     const payload = await getIdentitySyncStatus();
-    const entry = latestIdentitySyncEntry(
+    const summary = identityWorkspaceSyncSummary(
       payload,
-      String(getState().workflowBinding?.workflowRef || "")
+      String(getState().workflowBinding?.workflowRef || ""),
+      String(getState().activeProjectId || "")
     );
-    const state = String(entry?.state || "");
+    const state = String(summary.state || "");
     if (["saved_local", "sync_pending", "reconnect_required", "synced"].includes(state)) {
-      setState({ identitySyncState: state });
+      setState({ identitySyncState: state, identitySyncIssue: summary.issue });
       return state;
     }
   } catch {
@@ -329,10 +385,14 @@ export async function retryIdentityWorkspaceSync({ syncManifest = true } = {}) {
   const workflowRef = String(getState().workflowBinding?.workflowRef || "");
   try {
     const payload = await retryIdentitySync();
-    const entry = latestIdentitySyncEntry(payload, workflowRef);
-    const pendingState = String(entry?.state || "sync_pending");
+    const summary = identityWorkspaceSyncSummary(
+      payload,
+      workflowRef,
+      String(getState().activeProjectId || "")
+    );
+    const pendingState = String(summary.state || "sync_pending");
     if (["saved_local", "sync_pending", "reconnect_required", "synced"].includes(pendingState)) {
-      setState({ identitySyncState: pendingState });
+      setState({ identitySyncState: pendingState, identitySyncIssue: summary.issue });
     }
     if (workflowRef) {
       const drafts = await getLocalPersonDrafts(workflowRef);

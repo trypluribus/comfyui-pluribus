@@ -1098,6 +1098,10 @@ function identitySyncAction(state) {
     retry.disabled = false;
     toast(result === "synced" ? "Local identity work is synced." : "Identity sync is still pending.");
   });
+  if (state.identitySyncIssue?.message) {
+    retry.title = String(state.identitySyncIssue.message);
+    retry.setAttribute("aria-label", `Retry sync. ${state.identitySyncIssue.message}`);
+  }
   return retry;
 }
 

@@ -31,6 +31,7 @@ from .identity_service import (
     IdentityPersistenceError,
 )
 from .identity_decisions import IdentityDecisionService
+from .project_portraits import ProjectPortraitService
 from . import remote
 
 
@@ -42,6 +43,7 @@ def register_routes(
     bindings_path: str | None = None,
     identity_service: IdentityAnalysisService | None = None,
     identity_decision_service: IdentityDecisionService | None = None,
+    project_portrait_service: ProjectPortraitService | None = None,
 ) -> None:
     routes = prompt_server.routes
     # A clean install has no fabricated talent or clearance state. Passing a
@@ -66,6 +68,13 @@ def register_routes(
             bindings,
             connection_path=connection_path,
         )
+    portraits = project_portrait_service
+    if portraits is None and isinstance(identity, IdentityAnalysisService):
+        portraits = ProjectPortraitService(
+            identity,
+            bindings,
+            connection_path=connection_path,
+        )
 
     def _schedule_identity_sync() -> None:
         if decisions is None:
@@ -73,6 +82,9 @@ def register_routes(
         async def drain_safely():
             try:
                 await decisions.drain_pending_async()
+                if portraits is not None:
+                    portraits.reconcile_completed_jobs()
+                    await portraits.drain_pending_async()
             except (ValueError, OSError):
                 return
         try:
@@ -323,6 +335,11 @@ def register_routes(
                 result["personDrafts"] = bindings.list_person_drafts(
                     sync_details["workflowRef"]
                 )
+                if portraits is not None:
+                    result["portraitSync"] = portraits.reconcile_job(
+                        _path(request, "job_id")
+                    )
+                    await portraits.drain_pending_async()
             except (OSError, ValueError):
                 # The local decision is already committed and retryable. Never
                 # turn a remote reconciliation failure into a failed local save.
@@ -350,7 +367,14 @@ def register_routes(
             if decisions is None:
                 return _identity_response({"entries": []})
             _schedule_identity_sync()
-            return _identity_response({"entries": decisions.sync_status()})
+            return _identity_response(
+                {
+                    "entries": decisions.sync_status(),
+                    "portraitEntries": (
+                        portraits.sync_status() if portraits is not None else []
+                    ),
+                }
+            )
         except ValueError as exc:
             return _identity_not_found_or_error(exc)
 
@@ -359,7 +383,19 @@ def register_routes(
         try:
             if decisions is None:
                 return _identity_response({"entries": []})
-            return _identity_response({"entries": await decisions.drain_pending_async()})
+            identity_entries = await decisions.drain_pending_async()
+            if portraits is not None:
+                portraits.reconcile_completed_jobs()
+            return _identity_response(
+                {
+                    "entries": identity_entries,
+                    "portraitEntries": (
+                        await portraits.drain_pending_async()
+                        if portraits is not None
+                        else []
+                    ),
+                }
+            )
         except ValueError as exc:
             return _identity_not_found_or_error(exc)
 

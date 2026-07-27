@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import os
 import uuid
@@ -37,6 +38,153 @@ def run(coro):
 
 def connection_path(tmp_path):
     return str(tmp_path / "connection.json")
+
+
+def make_binary_fetch(response=(200, {"success": True})):
+    calls = []
+
+    async def fetch(method, url, payload, headers, token):
+        calls.append(
+            {
+                "method": method,
+                "url": url,
+                "payload": payload,
+                "headers": headers,
+                "token": token,
+            }
+        )
+        return response
+
+    fetch.calls = calls
+    return fetch
+
+
+def test_portrait_upload_sends_only_bytes_and_opaque_bounded_headers(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(
+        path,
+        {"server_url": "https://example.test", "token": "plt_token"},
+    )
+    payload = b"sanitized-jpeg"
+    digest = hashlib.sha256(payload).hexdigest()
+    fetch = make_binary_fetch()
+
+    status, data = run(
+        remote.upload_project_person_portrait(
+            path,
+            "11111111-1111-4111-8111-111111111111",
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+            payload,
+            content_sha256=digest,
+            mime_type="image/jpeg",
+            display_order=2,
+            make_primary=False,
+            fetch=fetch,
+        )
+    )
+
+    assert (status, data) == (200, {"success": True})
+    assert fetch.calls == [{
+        "method": "PUT",
+        "url": (
+            "https://example.test/api/plugin/projects/"
+            "11111111-1111-4111-8111-111111111111/people/"
+            "22222222-2222-4222-8222-222222222222/portraits/"
+            "33333333-3333-4333-8333-333333333333"
+        ),
+        "payload": payload,
+        "headers": {
+            "Content-Type": "image/jpeg",
+            "Content-Length": str(len(payload)),
+            "X-Pluribus-Content-Sha256": digest,
+            "X-Pluribus-Display-Order": "2",
+            "X-Pluribus-Make-Primary": "false",
+        },
+        "token": "plt_token",
+    }]
+
+
+def test_portrait_upload_validates_size_before_network(tmp_path):
+    fetch = make_binary_fetch()
+
+    with pytest.raises(ValueError, match="between 1 byte and 1 MB"):
+        run(
+            remote.upload_project_person_portrait(
+                connection_path(tmp_path),
+                "11111111-1111-4111-8111-111111111111",
+                "22222222-2222-4222-8222-222222222222",
+                "33333333-3333-4333-8333-333333333333",
+                b"",
+                content_sha256="a" * 64,
+                mime_type="image/jpeg",
+                display_order=0,
+                make_primary=True,
+                fetch=fetch,
+            )
+        )
+
+    assert fetch.calls == []
+
+
+def test_portrait_retirement_sends_only_opaque_generation_proof(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(
+        path,
+        {"server_url": "https://example.test", "token": "plt_token"},
+    )
+    fetch = make_fetch([(200, {"success": True})])
+
+    status, data = run(
+        remote.retire_project_person_portrait(
+            path,
+            "11111111-1111-4111-8111-111111111111",
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+            "44444444-4444-4444-8444-444444444444",
+            fetch=fetch,
+        )
+    )
+
+    assert (status, data) == (200, {"success": True})
+    assert fetch.calls[0]["payload"] == {
+        "storageGeneration": "44444444-4444-4444-8444-444444444444"
+    }
+
+
+def test_portrait_generation_resolution_is_read_only_and_exact_hash_scoped(tmp_path):
+    path = connection_path(tmp_path)
+    remote.write_connection(
+        path,
+        {"server_url": "https://example.test", "token": "plt_token"},
+    )
+    digest = "a" * 64
+    fetch = make_fetch([(200, {"proof": {"found": False}})])
+
+    status, data = run(
+        remote.resolve_project_person_portrait_generation(
+            path,
+            "11111111-1111-4111-8111-111111111111",
+            "22222222-2222-4222-8222-222222222222",
+            "33333333-3333-4333-8333-333333333333",
+            digest,
+            fetch=fetch,
+        )
+    )
+
+    assert (status, data) == (200, {"proof": {"found": False}})
+    assert fetch.calls == [{
+        "method": "GET",
+        "url": (
+            "https://example.test/api/plugin/projects/"
+            "11111111-1111-4111-8111-111111111111/people/"
+            "22222222-2222-4222-8222-222222222222/portraits/"
+            "33333333-3333-4333-8333-333333333333"
+            f"?clientContentSha256={digest}"
+        ),
+        "payload": None,
+        "token": "plt_token",
+    }]
 
 
 def test_default_fetch_allows_production_workflow_writes_to_finish(monkeypatch):

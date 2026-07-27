@@ -434,6 +434,64 @@ def test_combine_rejects_drafts_mapped_to_different_project_people(tmp_path):
         )
 
 
+def test_combine_preserves_alias_history_when_switching_back_to_another_project(
+    tmp_path,
+):
+    state = _state(tmp_path)
+    workflow_ref = state["workflow"]["workflowRef"]
+    _draft(state, PERSON_A, "Nisreen", [state["sources"][0]])
+    _draft(state, PERSON_B, "Nisreen duplicate", [state["sources"][1]])
+    for draft_id in (PERSON_A, PERSON_B):
+        state["bindings"].record_workspace_alias(
+            workflow_ref,
+            "project-test",
+            draft_id,
+            CANONICAL_A,
+            "existing",
+            "a" * 64,
+        )
+
+    state["bindings"].associate(workflow_ref, "project-b", "production")
+    for draft_id in (PERSON_A, PERSON_B):
+        state["bindings"].record_workspace_alias(
+            workflow_ref,
+            "project-b",
+            draft_id,
+            CANONICAL_B,
+            "existing",
+            "b" * 64,
+        )
+    state["bindings"].associate(workflow_ref, "project-test", "production")
+
+    _decision(
+        state,
+        base_revision=0,
+        action="combine",
+        target={"draftId": PERSON_A},
+        mergeDraftIds=[PERSON_B],
+    )
+    state["bindings"].associate(workflow_ref, "project-b", "production")
+
+    survivor = state["bindings"].list_person_drafts(workflow_ref)[0]
+    tombstone = state["bindings"].list_person_draft_tombstones(workflow_ref)[0]
+    assert survivor["canonicalPersonId"] == CANONICAL_B
+    assert tombstone["resolvedPersonId"] == CANONICAL_B
+    assert tombstone["workspaceAlias"]["canonicalPersonId"] == CANONICAL_B
+    with state["bindings"]._lock:
+        binding = state["bindings"]._find(
+            state["bindings"]._read(), workflow_ref
+        )
+    assert {
+        project_id: marker["canonicalPersonId"]
+        for project_id, marker in binding["person_draft_tombstones"][PERSON_B][
+            "workspaceAliases"
+        ].items()
+    } == {
+        "project-b": CANONICAL_B,
+        "project-test": CANONICAL_A,
+    }
+
+
 def test_committed_decision_replays_without_new_revision_or_outbox_entry(tmp_path):
     state = _state(tmp_path, project=False)
     _draft(state, PERSON_A, "Nisreen", [state["sources"][0]])
