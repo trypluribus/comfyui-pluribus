@@ -15,7 +15,7 @@ requires-python = ">=3.10,<3.15"
 identity = [
   "Pillow>=9.5",
   "numpy>=1.24,<3",
-  "opencv-python-headless>=4.8,<5",
+  "opencv-python-headless>=4.8,<6",
 ]
 
 [project.urls]
